@@ -7,6 +7,10 @@ Actuellement, seuls **Welcome to the Jungle** et **Apec** sont pris en charge.
 
 ## Comment l'utiliser
 
+### Configuration de l'URL à scraper
+
+Pour personnaliser les offres récupérées, il est nécessaire de modifier manuellement l'URL dans la méthode `__init__` des fichiers **`WelcomeToTheJungle.py`** et **`Apec.py`**. Cette URL doit correspondre aux filtres configurés sur le site concerné.
+
 ### Mise à jour des offres d'emploi
 
 Pour mettre à jour les données, exécutez le script **`main.py`**, qui effectue les étapes suivantes :

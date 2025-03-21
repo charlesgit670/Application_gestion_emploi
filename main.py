@@ -58,12 +58,17 @@ def merge_dataframes(stored_df, new_df):
     else:
         return stored_df
 
+def save_data(df):
+    if not os.path.exists("data"):
+        os.makedirs("data")
+    df.to_csv("data/job.csv", index=False, sep=";")
+
 
 def update_store_data():
     new_df = get_all_job()
     store_df = get_store_data()
     merged_df = merge_dataframes(store_df, new_df)
-    merged_df.to_csv("data/job.csv", index=False, sep=";")
+    save_data(merged_df)
 
 
 
