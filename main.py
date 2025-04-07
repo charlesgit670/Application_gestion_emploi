@@ -8,9 +8,15 @@ from scraping.Apec import Apec
 from scraping.utils import measure_time
 
 @measure_time
-def get_all_job():
-    with multiprocessing.Pool(processes=2) as pool:
-        results = pool.map(get_jobs_from_source, [Apec, WelcomeToTheJungle])
+def get_all_job(is_multiproc=True):
+    all_platform = [WelcomeToTheJungle, Apec]
+    if is_multiproc:
+        with multiprocessing.Pool(processes=2) as pool:
+            results = pool.map(get_jobs_from_source, all_platform)
+    else:
+        results = []
+        for p in all_platform:
+            results.append(p().getJob())
 
     df = pd.concat(results)
     return df
@@ -64,8 +70,8 @@ def save_data(df):
     df.to_csv("data/job.csv", index=False, sep=";")
 
 
-def update_store_data():
-    new_df = get_all_job()
+def update_store_data(is_multiproc=True):
+    new_df = get_all_job(is_multiproc)
     store_df = get_store_data()
     merged_df = merge_dataframes(store_df, new_df)
     save_data(merged_df)
@@ -75,7 +81,7 @@ def update_store_data():
 
 if __name__ == "__main__":
     # Met à jour les données à partir du scraping des différents site d'offre
-    update_store_data()
+    update_store_data(is_multiproc=True)
 
 
 

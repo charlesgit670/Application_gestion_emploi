@@ -31,11 +31,11 @@ class WelcomeToTheJungle(JobFinder):
         while True:
             print(f"Page {count}")
             job_elements = WebDriverWait(driver, 3).until(
-                EC.presence_of_all_elements_located((By.XPATH, "//div[@class='sc-gVcfYu bkUuhH']//a"))
+                EC.presence_of_all_elements_located((By.XPATH, "//div[@class='sc-bguTAn gRywVs']//a"))
             )
 
             job_company = WebDriverWait(driver, 3).until(
-                EC.presence_of_all_elements_located((By.XPATH, "//span[@class='sc-lizKOf LGoxu sc-eRdibt hPAZrU wui-text']"))
+                EC.presence_of_all_elements_located((By.XPATH, "//span[@class='sc-lizKOf LGoxu sc-bGWAAz kRWQXc wui-text']"))
             )
 
             for job, comp in zip(job_elements, job_company):
@@ -80,7 +80,7 @@ class WelcomeToTheJungle(JobFinder):
             voir_plus_button.click()
 
             description_div = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//div[@class='sc-bXCLTC eCbjRu sc-cVOTOZ hxoGKK']"))
+                EC.presence_of_element_located((By.XPATH, "//div[@class='sc-bXCLTC eCbjRu sc-UoxQT gmQRZC']"))
             )
 
             # Récupérer le texte
