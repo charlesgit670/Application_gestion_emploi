@@ -9,10 +9,15 @@ def load_data():
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE, sep=";")
     else:
-        return pd.DataFrame(columns=["title", "content", "company", "link", "is_read", "is_apply", "is_refused"])
+        return pd.DataFrame(columns=["title", "content", "company", "link", "is_read", "is_apply", "is_refused", "is_good_offer", "comment"])
 
 def save_data(df):
     df.to_csv(DATA_FILE, sep=";", index=False)
+
+def get_color(score):
+    r = int(255 - (score * 2.55))
+    g = int(score * 2.55)
+    return f"rgb({r},{g},0)"
 
 df = load_data()
 
@@ -22,12 +27,14 @@ if "index" not in st.session_state:
 
 # Navigation entre pages
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Aller à :", ["Nouvelles offres d'emploi", "Offres déjà lu", "Candidatures refusés", "Candidatures en cours"])
+page = st.sidebar.radio("Aller à :", ["Nouvelles offres d'emploi", "Offres filtrées par GPT", "Offres déjà lu", "Candidatures refusés", "Candidatures en cours"])
 
 # Page d'accueil - Affiche les offres non lues
 if page == "Nouvelles offres d'emploi":
     # Filtrer les offres non lues
-    unread_jobs = df[df["is_read"] == 0].reset_index(drop=True)
+    unread_jobs = df[(df["is_read"] == 0) & (df["is_good_offer"] == 1)] \
+        .sort_values(by="score", ascending=False) \
+        .reset_index(drop=True)
 
     total_jobs = len(unread_jobs)
 
@@ -42,6 +49,17 @@ if page == "Nouvelles offres d'emploi":
         st.subheader(job["title"])
         st.subheader(job["company"])
         st.markdown(f"[🔗 Lien vers l'offre]({job['link']})", unsafe_allow_html=True)
+        score = int(job["score"])
+        color = get_color(score)
+        st.markdown(f"""
+        <div style="margin: 20px 0; width: 60%; background-color: #eee; border-radius: 5px;">
+          <div style="width: {score}%; background-color: {color}; padding: 10px 0; border-radius: 5px; text-align: center; color: white; font-weight: bold;">
+            {score}%
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        with st.expander("💬 Commentaire"):
+            st.write(job["comment"])
         # st.write(job["content"])
         # st.code(job["content"])
         st.markdown(job["content"].replace("\n", "<br>"), unsafe_allow_html=True)
@@ -68,6 +86,42 @@ if page == "Nouvelles offres d'emploi":
             df.loc[df["link"] == job["link"], ["is_apply", "is_read"]] = 1
             save_data(df)
             st.rerun()
+
+# Offre filtrer par LLM
+elif page == "Offres filtrées par GPT":
+    st.title("📄 Offres non pertinentes")
+
+    applied_jobs = df[(df["is_read"] == 0) & (df["is_good_offer"] == 0)]\
+        .sort_values(by="score", ascending=False)\
+        .reset_index(drop=True)
+
+    if applied_jobs.empty:
+        st.write("❌ Aucune offre filtrée")
+    else:
+        for index, job in applied_jobs.iterrows():
+            col1, col2 = st.columns([0.85, 0.15])
+
+            with col1:
+                score = int(job["score"])
+                color = get_color(score)
+                st.markdown(f"""
+                <div style="margin: 20px 0; width: 100%; background-color: #eee; border-radius: 5px;">
+                  <div style="width: {score}%; background-color: {color}; padding: 10px 0; border-radius: 5px; text-align: center; color: white; font-weight: bold;">
+                    {score}%
+                  </div>
+                </div>
+                """, unsafe_allow_html=True)
+                with st.expander(job["title"] + " | " + job["company"] + "\n" + job["comment"]):
+                    st.write(job["content"])
+                    st.markdown(f"[🔗 Lien vers l'offre]({job['link']})", unsafe_allow_html=True)
+
+            with col2:
+                # Bouton pour rétablir l'offre
+                st.markdown("<div style='height: 85px;'></div>", unsafe_allow_html=True)
+                if st.button("🔄 Restaurer", key=f"restore_{index}"):
+                    df.loc[df["link"] == job["link"], "is_good_offer"] = 1
+                    save_data(df)
+                    st.rerun()
 
 # Page des postes déjà lu
 elif page == "Offres déjà lu":

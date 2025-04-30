@@ -9,7 +9,13 @@ Actuellement, seuls **Welcome to the Jungle** et **Apec** sont pris en charge.
 
 ### Configuration de l'URL à scraper
 
-Pour personnaliser les offres récupérées, il est nécessaire de modifier manuellement l'URL dans la méthode `__init__` des fichiers **`WelcomeToTheJungle.py`** et **`Apec.py`**. Cette URL doit correspondre aux filtres configurés sur le site concerné.
+Pour personnaliser les offres récupérées, il est nécessaire de modifier manuellement l'URL dans la méthode `__init__` des fichiers **`WelcomeToTheJungle.py`**,  **`Apec.py`** et **`Linkedin.py`**. Cette URL doit correspondre aux filtres configurés sur le site concerné.
+
+### Ajout de la clé API ChatGPT
+
+- Créer un fichier .env à la racine du projet et ajouter la clé comme ceci :
+`OPENAI_API_KEY="your key"`
+- Modifier le prompt de la variable `instruction` afin de l'adapter à vos critères dans le fichier `src/scraping/utils.py`
 
 ### Mise à jour des offres d'emploi
 
@@ -42,10 +48,23 @@ Sur la page d'accueil **"Nouvelles offres d'emploi"**, vous trouverez :
 - L'intitulé du poste.
 - Le nom de l'entreprise.
 - Un lien vers l'offre sur le site source.
+- Un score entre 0 et 100 indiquant le degré de pertinence de l'offre
+- Commentaire écrit par le GPT
 - Une brève description de l'offre.
 - Des boutons **Suivant** et **Précédent**.
 - Un bouton **Postuler**, qui classe l'offre dans "Candidatures en cours" et la retire de cette page.
 - Un bouton **Marquer comme lu**, qui classe l'offre dans "Offres déjà lues" et la retire également.
+
+### Offres filtrées par GPT
+
+![app_unintesresting_job_img.png](imgs%2Fapp_unintesresting_job_img.png)
+
+Dans l'onglet **"Offres filtrées par GPT""**, les offres ayant obtenues un score strictement inférieur à 50%
+
+- Affichage du score
+- Commentaire fait par GPT
+- Vous pouvez afficher la description via un bouton déroulant.
+- Le bouton **Restaurer** permet de replacer l'offre dans "Nouvelles offres".
 
 ### Offres déjà lues
 

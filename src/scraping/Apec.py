@@ -11,8 +11,7 @@ from scraping.utils import measure_time, create_driver
 class Apec(JobFinder):
 
     def __init__(self):
-        self.url = "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=data%20scientist&lieux=596212&typesConvention=143684&typesConvention=143685&typesConvention=143686&typesConvention=143687&typesContrat=101888&page=0&distance=10"
-
+        self.url = "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=data%20scientist&lieux=596212&typesConvention=143684&typesConvention=143685&typesConvention=143686&typesConvention=143687&typesContrat=101888&page=0&distance=15"
     @measure_time
     def getJob(self):
         driver = create_driver()
@@ -61,7 +60,7 @@ class Apec(JobFinder):
                 break
 
         # Récupérer le contenu de toutes les fiches de poste
-        print(f"Nombre de fiche de poste récupéré {len(all_jobs)}")
+        print(f"Nombre de fiche de poste APEC récupéré {len(all_jobs)}")
         list_title = []
         list_content = []
         list_company = []
