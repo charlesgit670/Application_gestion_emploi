@@ -30,11 +30,12 @@ class JobFinder:
 
         response = requests.get(url, headers=headers)
 
+        return response
         # Vérifier si la requête a réussi
-        if response.status_code == 200:
-            return response
-        else:
-            print("Erreur get content :", response.status_code)
+        # if response.status_code == 200:
+        #     return response
+        # else:
+        #     print("Erreur get content :", response.status_code)
 
     # def post_content(self, url, data, userToken):
     #     headers = {

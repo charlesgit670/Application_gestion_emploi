@@ -57,8 +57,12 @@ class Linkedin(JobFinder):
 
     @backoff.on_exception(backoff.expo, (HTTPError, RequestException), giveup=lambda e: e.response is not None and e.response.status_code != 429)
     def get_job_details(self, job_id):
-        time.sleep(random.uniform(0.5, 2.0))
+        time.sleep(random.uniform(0.5, 2.5))
         resp = self.get_content(self.job_description_api.format(job_id))
+
+        if resp is None or resp.status_code == 429:
+            raise HTTPError(response=resp)
+
         soup = BeautifulSoup(resp.text, 'html.parser')
 
         company = soup.find("div", {"class": "top-card-layout__card"}).find("a").find("img").get('alt')
