@@ -71,7 +71,7 @@ def is_similar(content1, content2, threshold=95):
     similarity = fuzz.ratio(content1, content2)
     return similarity >= threshold
 
-def merge_dataframes(stored_df, new_df, add_LLM):
+def merge_dataframes(stored_df, new_df, local_LLM):
     """Ajoute les nouvelles entrées du new_df à stored_df en vérifiant l'unicité sur 'link' et la similarité sur 'content'."""
     if stored_df.empty:
         return new_df
@@ -80,18 +80,15 @@ def merge_dataframes(stored_df, new_df, add_LLM):
     new_rows = []
 
     # Load client LLM
-    if add_LLM:
-        # client = OpenAI(
-        #     api_key=os.environ.get("OPENAI_API_KEY"),
-        # )
+    client = None
+    if not local_LLM:
         client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     for _, new_row in tqdm(new_df.iterrows(), total=len(new_df), desc="Traitement des offres récupérées"):
         if not stored_df['link'].str.contains(new_row['link'], na=False).any():
             # Vérifier si le contenu est trop similaire à un contenu existant
             if not any(is_similar(new_row['content'], existing_content) for existing_content in stored_df['content']):
-                if add_LLM:
-                    new_row = add_LLM_comment(client, new_row)
+                new_row = add_LLM_comment(client, new_row)
                 new_rows.append(new_row)
 
     if new_rows:
@@ -106,10 +103,10 @@ def save_data(df):
     df.to_csv("data/job.csv", index=False, sep=";")
 
 
-def update_store_data(is_multiproc=True, add_LLM=False):
+def update_store_data(is_multiproc=True, local_LLM=False):
     new_df = get_all_job(is_multiproc)
     store_df = get_store_data()
-    merged_df = merge_dataframes(store_df, new_df, add_LLM)
+    merged_df = merge_dataframes(store_df, new_df, local_LLM)
     save_data(merged_df)
 
 
@@ -119,7 +116,7 @@ if __name__ == "__main__":
     # Load env variable
     load_dotenv()
     # Met à jour les données à partir du scraping des différents site d'offre
-    update_store_data(is_multiproc=True, add_LLM=True)
+    update_store_data(is_multiproc=True, local_LLM=True)
 
 
 

@@ -80,9 +80,18 @@ class WelcomeToTheJungle(JobFinder):
 
             for attempt in range(3):
                 try:
-                    WebDriverWait(driver, 10).until(
+                    voir_plus = WebDriverWait(driver, 10).until(
                         EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
-                    ).click()
+                    )
+
+                    # Scroll vers l'élément (important en headless)
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", voir_plus)
+
+                    WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
+                    )
+
+                    voir_plus.click()
 
                     description_div = WebDriverWait(driver, 10).until(
                         EC.presence_of_element_located((By.XPATH, "//div[@id='the-position-section']"))

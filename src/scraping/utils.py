@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 import backoff
+from ollama import generate
 
 
 
@@ -79,35 +80,45 @@ def add_LLM_comment(client_LLM, row):
     company = row["company"]
     description = row["content"]
 
-    response = client_LLM.responses.create(
-        model="gpt-4o-mini",
-        instructions=instruction,
-        temperature=0,
-        input=company + "\n" + title + "\n" + description,
-    )
+    if client_LLM == None:
+        response = generate(
+            model="gemma3:12b",
+            options={
+                "temperature": 0.1,
+            },
+            format={
+                "type": "object",
+                "properties": {
+                    "reponse": {
+                        "type": "number"
+                    },
+                    "justification": {
+                        "type": "string",
+                    },
+                }
+            },
+            prompt=instruction + "\n" + company + "\n" + title + "\n" + description,
 
-
-    # response = client_LLM.chat.complete(
-    #     model="mistral-large-latest",
-    #     temperature=0,
-    #     messages=[
-    #         {
-    #             "role": "user",
-    #             "content": instruction + "\n" + company + "\n" + title + "\n" + description,
-    #         },
-    #     ]
-    # )
-
-    # Utiliser une regex pour extraire ce qui est entre { }
-    match = re.search(r'\{.*\}', response.output_text, re.DOTALL)
-    if match:
-        json_string = match.group(0)
-        data = json.loads(json_string)
-        row["is_good_offer"] = 1 if int(data["reponse"]) >= 50 else 0
-        row["comment"] = data["justification"]
-        row["score"] = int(data["reponse"])
+        )
+        json_output = json.loads(response.response)
     else:
-        print("!!! Error LLM response !!!")
-        print(response.output_text)
+        response = client_LLM.responses.create(
+            model="gpt-4o-mini",
+            instructions=instruction,
+            temperature=0,
+            input=company + "\n" + title + "\n" + description,
+        )
+        output_text = response.output_text
+        match = re.search(r'\{.*\}', output_text, re.DOTALL)
+        if match:
+            json_string = match.group(0)
+            json_output = json.loads(json_string)
+        else:
+            print("!!! Error LLM response !!!")
+            print(response.output_text)
+
+    row["is_good_offer"] = 1 if int(json_output["reponse"]) >= 50 else 0
+    row["comment"] = json_output["justification"]
+    row["score"] = int(json_output["reponse"])
 
     return row
