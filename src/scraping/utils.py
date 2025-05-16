@@ -9,6 +9,8 @@ from selenium.webdriver.chrome.options import Options
 import backoff
 from ollama import generate
 
+from scraping.prompts import my_resume, instruction_custom_profile, instruction_scoring
+
 
 
 def measure_time(func):
@@ -40,41 +42,8 @@ def create_driver():
 @backoff.on_exception(backoff.expo, Exception)
 def add_LLM_comment(client_LLM, row):
     """
-    Modifier l'intruction en fonction de ce que vous recherchez
+    Modifier l'instruction_scoring en fonction de ce que vous recherchez
     """
-
-    instruction = """
-        Je suis a la recherche d'un CDI en tant que data scientist :
-        Ce que je veux :
-        - Forte part de création de modèle de machine learning et modèle statistique
-        - Analyser et comprendre le résultat des modèles
-        - Préférence pour le secteur industriel comme l'énergie, l'écologie
-        - Utilisation du langage Python
-
-        Ce que je tolère :
-        - Préparation des données
-        - Industrialisation de modèles
-        - Présentation des résultats
-
-        Ce que je ne veux pas :
-        - Stage et alternance
-        - Un poste qui ressemble plus à data analyste ou data engineer
-        - Les secteurs bancaire, assurance, retails etc.
-
-        Ceux sont des préférences donc ne soit pas trop exigeant
-
-        Est-ce que l'offre ci-dessus pourrait correspondre à mes attentes ?
-        Répond en donnant un score d'interet pour l'offre entre 0 et 100 :
-        - moins de 50 si l'offre contient très peu de tache lié au machine learning 
-        - supérieur à 50 si des fortes part de machine learning 
-        et justifie ton choix en énumérant tes arguments en quelques mots tout ça au format json suivant:
-        {
-        "reponse": "score",
-        "justification": "Ta justification"
-        }
-
-        Offres : 
-        """
 
     title = row["title"]
     company = row["company"]
@@ -97,14 +66,14 @@ def add_LLM_comment(client_LLM, row):
                     },
                 }
             },
-            prompt=instruction + "\n" + company + "\n" + title + "\n" + description,
+            prompt=instruction_scoring + "\n" + company + "\n" + title + "\n" + description,
 
         )
         json_output = json.loads(response.response)
     else:
         response = client_LLM.responses.create(
             model="gpt-4o-mini",
-            instructions=instruction,
+            instructions=instruction_scoring,
             temperature=0,
             input=company + "\n" + title + "\n" + description,
         )
@@ -121,4 +90,31 @@ def add_LLM_comment(client_LLM, row):
     row["comment"] = json_output["justification"]
     row["score"] = int(json_output["reponse"])
 
+    if row["is_good_offer"] == 1:
+        row["custom_profile"] = add_custom_cv_profile(client_LLM, row)
+
     return row
+
+
+def add_custom_cv_profile(client_LLM, row):
+    if client_LLM == None:
+        response = generate(
+            model="gemma3:12b",
+            options={
+                "temperature": 0.3,
+            },
+            prompt=my_resume + "\n" + row["content"] + "\n" + instruction_custom_profile,
+        )
+        output_text = response.response
+
+    else:
+        response = client_LLM.responses.create(
+            model="gpt-4o-mini",
+            instructions=instruction_custom_profile,
+            temperature=0.3,
+            input=my_resume + "\n" + row["content"],
+        )
+        output_text = response.output_text
+
+    return output_text
+

@@ -62,7 +62,8 @@ def get_store_data():
                                      "is_refused",
                                      "is_good_offer",
                                      "comment",
-                                     "score"])
+                                     "score",
+                                     "custom_profile"])
 
 def is_similar(content1, content2, threshold=95):
     """Compare deux contenus textuels et retourne True s'ils sont similaires à plus de 'threshold%'."""

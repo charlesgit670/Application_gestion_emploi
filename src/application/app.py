@@ -9,7 +9,7 @@ def load_data():
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE, sep=";")
     else:
-        return pd.DataFrame(columns=["title", "content", "company", "link", "is_read", "is_apply", "is_refused", "is_good_offer", "comment"])
+        return pd.DataFrame(columns=["title", "content", "company", "link", "is_read", "is_apply", "is_refused", "is_good_offer", "comment", "custom_profile"])
 
 def save_data(df):
     df.to_csv(DATA_FILE, sep=";", index=False)
@@ -60,6 +60,8 @@ if page == "Nouvelles offres d'emploi":
         """, unsafe_allow_html=True)
         with st.expander("💬 Commentaire"):
             st.write(job["comment"])
+        with st.expander("Proposition de description de profile"):
+            st.write(job["custom_profile"])
         # st.write(job["content"])
         # st.code(job["content"])
         st.markdown(job["content"].replace("\n", "<br>"), unsafe_allow_html=True)

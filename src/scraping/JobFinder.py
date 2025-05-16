@@ -14,7 +14,8 @@ class JobFinder:
             "is_refused": 0,
             "is_good_offer": 1,
             "comment": "",
-            "score": 0
+            "score": 0,
+            "custom_profile": ""
         }
         return pd.DataFrame(data=data)
 
