@@ -41,7 +41,7 @@ class WelcomeToTheJungle(JobFinder):
             )
 
             job_company = WebDriverWait(driver, 3).until(
-                EC.presence_of_all_elements_located((By.XPATH, "//span[@class='sc-dfndbK chdJTT sc-hzUbOy iUzvGA wui-text']"))
+                EC.presence_of_all_elements_located((By.XPATH, "//span[@class='sc-izXThL fFdRYJ sc-hzUbOy iUzvGA wui-text']"))
             )
 
             for job, comp in zip(job_elements, job_company):

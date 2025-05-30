@@ -37,7 +37,7 @@ def get_jobs_from_source(source_class):
 
 
 def get_store_data():
-    file_path = "data/backup/job.csv"
+    file_path = "data/job.csv"
     backup_dir = "data/backup/"
 
     if os.path.exists(file_path):
@@ -118,7 +118,6 @@ if __name__ == "__main__":
     load_dotenv()
     # Met à jour les données à partir du scraping des différents site d'offre
     update_store_data(is_multiproc=True, local_LLM=True)
-
 
 
 

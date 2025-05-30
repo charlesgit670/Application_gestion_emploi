@@ -28,9 +28,15 @@ class Apec(JobFinder):
                 cookie_banner = WebDriverWait(driver, 2).until(
                     EC.element_to_be_clickable((By.ID, "onetrust-reject-all-handler"))  # Refuser tous les cookies
                 )
+                # Permet de gérer les problemes en mode headless de bouton non cliquable
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", cookie_banner)
+                cookie_banner = WebDriverWait(driver, 2).until(
+                    EC.element_to_be_clickable((By.ID, "onetrust-reject-all-handler"))  # Refuser tous les cookies
+                )
                 cookie_banner.click()
                 print("Bannière de cookies fermée (refusé tous les cookies).")
-            except:
+            except Exception as e:
+                print(e)
                 print("Aucune bannière de cookies détectée.")
 
             # Attendre que l'élément contenant l'offre soit présent
