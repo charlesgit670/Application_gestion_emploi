@@ -32,7 +32,10 @@ class Linkedin(JobFinder):
             soup = BeautifulSoup(res.text, 'html.parser')
             alljobs_on_this_page = soup.find_all("li")
             for job_on_this_page in alljobs_on_this_page:
-                jobid = job_on_this_page.find("div", {"class": "base-card"}).get('data-entity-urn').split(":")[3]
+                jobid = job_on_this_page.find("div", {"class": "base-card"})
+                if jobid == None:
+                    continue
+                jobid = jobid.get('data-entity-urn').split(":")[3]
                 joblink = job_on_this_page.find("a")["href"]
                 if jobid not in all_job_id:
                     all_job_id.append(jobid)
