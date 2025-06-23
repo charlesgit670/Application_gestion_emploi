@@ -76,11 +76,11 @@ class WelcomeToTheJungle(JobFinder):
             self.__close_cookie_banner(driver)
 
             job_elements = WebDriverWait(driver, 3).until(
-                EC.presence_of_all_elements_located((By.XPATH, "//div[@class='sc-kdNOGn ifhrRP']//a"))
+                EC.presence_of_all_elements_located((By.XPATH, "//div[@class='sc-flttKd hSdoDt']//a"))
             )
 
             job_company = WebDriverWait(driver, 3).until(
-                EC.presence_of_all_elements_located((By.XPATH, "//span[@class='sc-izXThL fFdRYJ sc-hzUbOy iUzvGA wui-text']"))
+                EC.presence_of_all_elements_located((By.XPATH, "//span[@class='sc-izXThL fFdRYJ sc-bMgOzA bJPygT wui-text']"))
             )
 
             for job, comp in zip(job_elements, job_company):
