@@ -3,12 +3,13 @@ import pandas as pd
 
 class JobFinder:
 
-    def formatData(self, list_title, list_content, list_company, list_link):
+    def formatData(self, list_title, list_content, list_company, list_link, list_datetime):
         data = {
             "title": list_title,
             "content": list_content,
             "company": list_company,
             "link": list_link,
+            "date": list_datetime,
             "is_read": 0,
             "is_apply": 0,
             "is_refused": 0,
@@ -17,7 +18,9 @@ class JobFinder:
             "score": 0,
             "custom_profile": ""
         }
-        return pd.DataFrame(data=data)
+        df = pd.DataFrame(data=data)
+        df["date"] = pd.to_datetime(df["date"]).dt.date
+        return df
 
 
     def getJob(self):

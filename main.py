@@ -16,8 +16,8 @@ from scraping.utils import measure_time, add_LLM_comment
 
 @measure_time
 def get_all_job(is_multiproc=True):
-    all_platform = [Linkedin, WelcomeToTheJungle, Apec]
-    # all_platform = [Apec]
+    all_platform = [WelcomeToTheJungle, Linkedin, Apec]
+    # all_platform = [Linkedin]
     if is_multiproc:
         nbr_proc = len(all_platform)
         with multiprocessing.Pool(processes=nbr_proc) as pool:
@@ -57,6 +57,7 @@ def get_store_data():
                                      "content",
                                      "company",
                                      "link",
+                                     "date",
                                      "is_read",
                                      "is_apply",
                                      "is_refused",

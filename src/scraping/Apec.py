@@ -3,6 +3,7 @@ from tqdm import tqdm
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import urllib.parse
 
 from scraping.JobFinder import JobFinder
 from scraping.utils import measure_time, create_driver
@@ -11,11 +12,17 @@ from scraping.utils import measure_time, create_driver
 class Apec(JobFinder):
 
     def __init__(self):
-        self.url = "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=data%20scientist&lieux=596212&typesConvention=143684&typesConvention=143685&typesConvention=143686&typesConvention=143687&typesContrat=101888&page=0&distance=15"
+        self.keywords = ["Data Scientist", "Machine Learning"]
+        self.url = "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles={}&lieux=596212&typesConvention=143684&typesConvention=143685&typesConvention=143686&typesConvention=143687&typesContrat=101888&page=0&distance=15"
+
+    def build_keywords(self):
+        joined_keywords = " OR ".join(self.keywords)
+        return urllib.parse.quote(joined_keywords)
     @measure_time
     def getJob(self):
         driver = create_driver()
-        driver.get(self.url)
+        keyword = self.build_keywords()
+        driver.get(self.url.format(keyword))
 
         # Stocker tous les jobs trouvés
         all_jobs = []
@@ -48,9 +55,10 @@ class Apec(JobFinder):
                 job_link = offer.get_attribute("href")
                 job_title = offer.find_element(By.CSS_SELECTOR, "h2.card-title").text
                 company_name = offer.find_element(By.CSS_SELECTOR, "p.card-offer__company").text
+                datetime = offer.find_element(By.XPATH, ".//li[@title='Date de publication']").text
 
                 if job_title and company_name and job_link:
-                    all_jobs.append((job_title, company_name, job_link))
+                    all_jobs.append((job_title, company_name, job_link, datetime))
 
             # Vérifier si un bouton "Page suivante" est actif
             try:
@@ -71,7 +79,8 @@ class Apec(JobFinder):
         list_content = []
         list_company = []
         list_link = []
-        for title, comp, link in tqdm(all_jobs):
+        list_datetime = []
+        for title, comp, link, datetime in tqdm(all_jobs):
             driver.get(link)
 
             job_description_element = WebDriverWait(driver, 10).until(
@@ -84,13 +93,15 @@ class Apec(JobFinder):
             list_content.append(job_description)
             list_company.append(comp)
             list_link.append(link)
+            list_datetime.append(datetime)
 
         driver.quit()
 
-        return self.formatData(list_title, list_content, list_company, list_link)
+        return self.formatData(list_title, list_content, list_company, list_link, list_datetime)
 
 
 if __name__ == "__main__":
     APC = Apec()
     df = APC.getJob()
+    df = df.sort_values(by="date", ascending=False)
     print("a")

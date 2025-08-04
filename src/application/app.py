@@ -1,15 +1,22 @@
 import streamlit as st
 import pandas as pd
 import os
+from datetime import datetime
 
 # Charger ou initialiser le dataframe
 DATA_FILE = "data/job.csv"
 
 def load_data():
     if os.path.exists(DATA_FILE):
-        return pd.read_csv(DATA_FILE, sep=";")
+        df = pd.read_csv(DATA_FILE, sep=";")
+        df["date"] = pd.to_datetime(df["date"])
+
+        today = pd.Timestamp(datetime.utcnow().date())
+        df["days_diff"] = (today - df["date"]).dt.days
+
+        return df
     else:
-        return pd.DataFrame(columns=["title", "content", "company", "link", "is_read", "is_apply", "is_refused", "is_good_offer", "comment", "custom_profile"])
+        return pd.DataFrame(columns=["title", "content", "company", "link", "date", "is_read", "is_apply", "is_refused", "is_good_offer", "comment", "custom_profile", "days_diff"])
 
 def save_data(df):
     df.to_csv(DATA_FILE, sep=";", index=False)
@@ -33,7 +40,7 @@ page = st.sidebar.radio("Aller à :", ["Nouvelles offres d'emploi", "Offres filt
 if page == "Nouvelles offres d'emploi":
     # Filtrer les offres non lues
     unread_jobs = df[(df["is_read"] == 0) & (df["is_good_offer"] == 1)] \
-        .sort_values(by="score", ascending=False) \
+        .sort_values(by=["days_diff", "score"], ascending=[True, False]) \
         .reset_index(drop=True)
 
     total_jobs = len(unread_jobs)
@@ -49,6 +56,11 @@ if page == "Nouvelles offres d'emploi":
         st.subheader(job["title"])
         st.subheader(job["company"])
         st.markdown(f"[🔗 Lien vers l'offre]({job['link']})", unsafe_allow_html=True)
+        st.write(
+            f"Publié il y a **{int(job['days_diff'])}** jours"
+            if pd.notna(job['days_diff'])
+            else "Date de publication non renseignée"
+        )
         score = int(job["score"])
         color = get_color(score)
         st.markdown(f"""
@@ -94,7 +106,7 @@ elif page == "Offres filtrées par GPT":
     st.title("📄 Offres non pertinentes")
 
     applied_jobs = df[(df["is_read"] == 0) & (df["is_good_offer"] == 0)]\
-        .sort_values(by="score", ascending=False)\
+        .sort_values(by=["days_diff", "score"], ascending=[True, False])\
         .reset_index(drop=True)
 
     if applied_jobs.empty:
@@ -113,6 +125,11 @@ elif page == "Offres filtrées par GPT":
                   </div>
                 </div>
                 """, unsafe_allow_html=True)
+                st.write(
+                    f"Publié il y a **{int(job['days_diff'])}** jours"
+                    if pd.notna(job['days_diff'])
+                    else "Date de publication non renseignée"
+                )
                 with st.expander(job["title"] + " | " + job["company"] + "\n" + job["comment"]):
                     st.write(job["content"])
                     st.markdown(f"[🔗 Lien vers l'offre]({job['link']})", unsafe_allow_html=True)
