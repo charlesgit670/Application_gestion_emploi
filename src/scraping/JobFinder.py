@@ -23,7 +23,7 @@ class JobFinder:
         return df
 
 
-    def getJob(self):
+    def getJob(self, update_callback=None):
         pass
 
     def get_content(self, url):

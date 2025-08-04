@@ -72,18 +72,19 @@ class WelcomeToTheJungle(JobFinder):
             print("Aucune bannière de cookies détectée.")
 
     @measure_time
-    def getJob(self):
+    def getJob(self, update_callback=None):
         driver = create_driver()
         df = pd.DataFrame()
         list_urls = self.build_urls()
+
+        # Stocker tous les jobs trouvés
+        all_jobs = []
         for url in list_urls:
             driver.get(url)
 
             self.__close_cookie_banner(driver)
             # self.__login(driver)
 
-            # Stocker tous les jobs trouvés
-            all_jobs = []
             count = 1
             while True:
                 print(f"Page {count}")
@@ -125,54 +126,59 @@ class WelcomeToTheJungle(JobFinder):
                     print("Fin de pagination")
                     break
 
-            # Récupérer le contenu de toutes les fiches de poste
-            print(f"Nombre de fiche de poste WelcomeToTheJungle récupéré {len(all_jobs)}")
-            list_title = []
-            list_content = []
-            list_company = []
-            list_link = []
-            list_datetime = []
-            for title, comp, link, datetime in tqdm(all_jobs):
-                driver.get(link)
+        # Récupérer le contenu de toutes les fiches de poste
+        print(f"Nombre de fiche de poste WelcomeToTheJungle récupéré {len(all_jobs)}")
+        list_title = []
+        list_content = []
+        list_company = []
+        list_link = []
+        list_datetime = []
+        total = len(all_jobs)
+        for i, (title, comp, link, datetime) in enumerate(all_jobs):
+        # for title, comp, link, datetime in tqdm(all_jobs):
+            driver.get(link)
 
-                for attempt in range(3):
-                    try:
-                        voir_plus = WebDriverWait(driver, 10).until(
-                            EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
-                        )
+            for attempt in range(3):
+                try:
+                    voir_plus = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
+                    )
 
-                        # Scroll vers l'élément (important en headless)
-                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", voir_plus)
+                    # Scroll vers l'élément (important en headless)
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", voir_plus)
 
-                        WebDriverWait(driver, 5).until(
-                            EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
-                        )
+                    WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
+                    )
 
-                        voir_plus.click()
+                    voir_plus.click()
 
-                        description_div = WebDriverWait(driver, 10).until(
-                            EC.presence_of_element_located((By.XPATH, "//div[@id='the-position-section']"))
-                        )
+                    description_div = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.XPATH, "//div[@id='the-position-section']"))
+                    )
 
-                        # Récupérer le texte
-                        job_description = description_div.text
-                        list_title.append(title)
-                        list_content.append(job_description)
-                        list_company.append(comp)
-                        list_link.append(link)
-                        list_datetime.append(datetime)
-                        break
-                    except Exception as e:
-                        if attempt < 2:
-                            print(f"retrying... {attempt + 1}")
-                            time.sleep(1)
-                        else:
-                            print(f"Failed to scrap")
-                            print(link)
+                    # Récupérer le texte
+                    job_description = description_div.text
+                    list_title.append(title)
+                    list_content.append(job_description)
+                    list_company.append(comp)
+                    list_link.append(link)
+                    list_datetime.append(datetime)
+                    break
+                except Exception as e:
+                    if attempt < 2:
+                        print(f"retrying... {attempt + 1}")
+                        time.sleep(1)
+                    else:
+                        print(f"Failed to scrap")
+                        print(link)
+            print(f"WTTF {i}/{total}")
+            if update_callback:
+                update_callback(i + 1, total)
 
-            df = pd.concat([df, self.formatData(list_title, list_content, list_company, list_link, list_datetime)])
         driver.quit()
 
+        df = self.formatData(list_title, list_content, list_company, list_link, list_datetime)
         df = df.drop_duplicates(subset="link", keep="first")
         return df
 

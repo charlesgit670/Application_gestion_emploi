@@ -18,8 +18,29 @@ class Apec(JobFinder):
     def build_keywords(self):
         joined_keywords = " OR ".join(self.keywords)
         return urllib.parse.quote(joined_keywords)
+
+    def formatData(self, list_title, list_content, list_company, list_link, list_datetime):
+        data = {
+            "title": list_title,
+            "content": list_content,
+            "company": list_company,
+            "link": list_link,
+            "date": list_datetime,
+            "is_read": 0,
+            "is_apply": 0,
+            "is_refused": 0,
+            "is_good_offer": 1,
+            "comment": "",
+            "score": 0,
+            "custom_profile": ""
+        }
+        df = pd.DataFrame(data=data)
+        df["date"] = pd.to_datetime(df["date"], dayfirst=True).dt.date
+        return df
+
+
     @measure_time
-    def getJob(self):
+    def getJob(self, update_callback=None):
         driver = create_driver()
         keyword = self.build_keywords()
         driver.get(self.url.format(keyword))
@@ -80,7 +101,9 @@ class Apec(JobFinder):
         list_company = []
         list_link = []
         list_datetime = []
-        for title, comp, link, datetime in tqdm(all_jobs):
+        total = len(all_jobs)
+        for i, (title, comp, link, datetime) in enumerate(all_jobs):
+        # for title, comp, link, datetime in tqdm(all_jobs):
             driver.get(link)
 
             job_description_element = WebDriverWait(driver, 10).until(
@@ -94,6 +117,10 @@ class Apec(JobFinder):
             list_company.append(comp)
             list_link.append(link)
             list_datetime.append(datetime)
+
+            print(f"APEC {i}/{total}")
+            if update_callback:
+                update_callback(i + 1, total)
 
         driver.quit()
 

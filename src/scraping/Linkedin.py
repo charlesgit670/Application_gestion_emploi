@@ -19,7 +19,7 @@ class Linkedin(JobFinder):
         self.job_id_api = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={}&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=5&f_JT=F&f_E=2%2C3%2C4&f_PP=102924436%2C103424094%2C106218810&f_TPR=r2592000&position=1&pageNum=0&start={}'
         self.job_description_api = 'https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}'
     @measure_time
-    def getJob(self):
+    def getJob(self, update_callback=None):
         # Récupérer le nombre total d'offre
         keywords = self.build_keywords()
         res = self.get_content(self.url.format(keywords))
@@ -56,12 +56,18 @@ class Linkedin(JobFinder):
         list_link = all_job_link
         list_datetime = all_job_datetime
 
-        for job_id in tqdm(all_job_id):
+        total = len(all_job_id)
+        for i, job_id in enumerate(all_job_id):
+        # for job_id in tqdm(all_job_id):
             company, jobTitle, jobDescription = self.get_job_details(job_id)
 
             list_title.append(jobTitle)
             list_content.append(jobDescription)
             list_company.append(company)
+
+            print(f"Linkedin {i}/{total}")
+            if update_callback:
+                update_callback(i + 1, total)
 
         return self.formatData(list_title, list_content, list_company, list_link, list_datetime)
 

@@ -1,6 +1,5 @@
 import pandas as pd
 import os
-import multiprocessing
 from rapidfuzz import fuzz
 from datetime import datetime
 import shutil
@@ -13,27 +12,32 @@ from scraping.WelcomeToTheJungle import WelcomeToTheJungle
 from scraping.Apec import Apec
 from scraping.Linkedin import Linkedin
 from scraping.utils import measure_time, add_LLM_comment
+from concurrent.futures import ThreadPoolExecutor
 
-@measure_time
-def get_all_job(is_multiproc=True):
-    all_platform = [WelcomeToTheJungle, Linkedin, Apec]
-    # all_platform = [Linkedin]
+
+def get_all_job(progress_dict, is_multiproc=True):
+    all_platforms = [WelcomeToTheJungle, Linkedin, Apec]
+
+    def run_source(source_class):
+        name = source_class.__name__
+        platform = source_class()
+
+        def update_callback(current, total):
+            progress_dict[name] = (current, total)
+
+        return platform.getJob(update_callback=update_callback)
+
     if is_multiproc:
-        nbr_proc = len(all_platform)
-        with multiprocessing.Pool(processes=nbr_proc) as pool:
-            results = pool.map(get_jobs_from_source, all_platform)
+        with ThreadPoolExecutor(max_workers=len(all_platforms)) as executor:
+            results = list(executor.map(run_source, all_platforms))
     else:
         results = []
-        for p in all_platform:
-            results.append(p().getJob())
+        for cls in all_platforms:
+            results.append(cls.getJob())
 
-    df = pd.concat(results)
-    return df
+    return pd.concat(results)
 
 
-def get_jobs_from_source(source_class):
-    source = source_class()
-    return source.getJob()
 
 
 def get_store_data():
@@ -105,20 +109,23 @@ def save_data(df):
     df.to_csv("data/job.csv", index=False, sep=";")
 
 
-def update_store_data(is_multiproc=True, local_LLM=False):
-    new_df = get_all_job(is_multiproc)
+def update_store_data(progress_dict, is_multiproc=True, local_LLM=False):
+    # Load env variable
+    load_dotenv()
+
+    new_df = get_all_job(progress_dict, is_multiproc)
     store_df = get_store_data()
     merged_df = merge_dataframes(store_df, new_df, local_LLM)
     save_data(merged_df)
 
 
-
-
 if __name__ == "__main__":
-    # Load env variable
-    load_dotenv()
-    # Met à jour les données à partir du scraping des différents site d'offre
-    update_store_data(is_multiproc=True, local_LLM=True)
+    progress_dict = {
+        "WelcomeToTheJungle": (0, 0),
+        "Linkedin": (0, 0),
+        "Apec": (0, 0),
+    }
+    update_store_data(progress_dict, True, True)
 
 
 
