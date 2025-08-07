@@ -1,4 +1,6 @@
 import pandas as pd
+import json
+import re
 from tqdm import tqdm
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -12,31 +14,38 @@ from scraping.utils import measure_time, create_driver
 class Apec(JobFinder):
 
     def __init__(self):
-        self.keywords = ["Data Scientist", "Machine Learning"]
-        self.url = "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles={}&lieux=596212&typesConvention=143684&typesConvention=143685&typesConvention=143686&typesConvention=143687&typesContrat=101888&page=0&distance=15"
+        self.get_config()
+        # self.keywords = ["Data Scientist", "Machine Learning"]
+        # self.url = "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles={}&lieux=596212&typesConvention=143684&typesConvention=143685&typesConvention=143686&typesConvention=143687&typesContrat=101888&page=0&distance=15"
+
+    def get_config(self):
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        self.keywords = config['keywords']
+        self.url = re.sub(r'motsCles=[^&]*', 'motsCles={}', config['url']['apec'])
 
     def build_keywords(self):
         joined_keywords = " OR ".join(self.keywords)
         return urllib.parse.quote(joined_keywords)
 
-    def formatData(self, list_title, list_content, list_company, list_link, list_datetime):
-        data = {
-            "title": list_title,
-            "content": list_content,
-            "company": list_company,
-            "link": list_link,
-            "date": list_datetime,
-            "is_read": 0,
-            "is_apply": 0,
-            "is_refused": 0,
-            "is_good_offer": 1,
-            "comment": "",
-            "score": 0,
-            "custom_profile": ""
-        }
-        df = pd.DataFrame(data=data)
-        df["date"] = pd.to_datetime(df["date"], dayfirst=True).dt.date
-        return df
+    # def formatData(self, list_title, list_content, list_company, list_link, list_datetime):
+    #     data = {
+    #         "title": list_title,
+    #         "content": list_content,
+    #         "company": list_company,
+    #         "link": list_link,
+    #         "date": list_datetime,
+    #         "is_read": 0,
+    #         "is_apply": 0,
+    #         "is_refused": 0,
+    #         "is_good_offer": 1,
+    #         "comment": "",
+    #         "score": 0,
+    #         "custom_profile": ""
+    #     }
+    #     df = pd.DataFrame(data=data)
+    #     df["date"] = pd.to_datetime(df["date"], dayfirst=True).dt.date
+    #     return df
 
 
     @measure_time
@@ -124,7 +133,7 @@ class Apec(JobFinder):
 
         driver.quit()
 
-        return self.formatData(list_title, list_content, list_company, list_link, list_datetime)
+        return self.formatData("apec", list_title, list_content, list_company, list_link, list_datetime)
 
 
 if __name__ == "__main__":

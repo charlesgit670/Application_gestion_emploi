@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import json
 from rapidfuzz import fuzz
 from datetime import datetime
 import shutil
@@ -7,6 +8,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 # from mistralai import Mistral
 from tqdm import tqdm
+from enum import Enum
 
 from scraping.WelcomeToTheJungle import WelcomeToTheJungle
 from scraping.Apec import Apec
@@ -15,8 +17,12 @@ from scraping.utils import measure_time, add_LLM_comment
 from concurrent.futures import ThreadPoolExecutor
 
 
-def get_all_job(progress_dict, is_multiproc=True):
-    all_platforms = [WelcomeToTheJungle, Linkedin, Apec]
+class Platform(Enum):
+    wttj = WelcomeToTheJungle
+    apec = Apec
+    linkedin = Linkedin
+
+def get_all_job(progress_dict, all_platforms, is_multiproc=True):
 
     def run_source(source_class):
         name = source_class.__name__
@@ -68,7 +74,8 @@ def get_store_data():
                                      "is_good_offer",
                                      "comment",
                                      "score",
-                                     "custom_profile"])
+                                     "custom_profile",
+                                     "hash"])
 
 def is_similar(content1, content2, threshold=95):
     """Compare deux contenus textuels et retourne True s'ils sont similaires à plus de 'threshold%'."""
@@ -77,24 +84,30 @@ def is_similar(content1, content2, threshold=95):
     similarity = fuzz.ratio(content1, content2)
     return similarity >= threshold
 
-def merge_dataframes(stored_df, new_df, local_LLM):
+def merge_dataframes(stored_df, new_df, use_llm, llm_config):
     """Ajoute les nouvelles entrées du new_df à stored_df en vérifiant l'unicité sur 'link' et la similarité sur 'content'."""
+
+    # Load client LLM
+    client = None
+    if use_llm and not llm_config["local"]:
+        client = OpenAI(api_key=llm_config["gpt_api_key"])
+
+
     if stored_df.empty:
+        if use_llm:
+            new_df = new_df.apply(lambda row: add_LLM_comment(client, llm_config, row), axis=1)
         return new_df
 
     # Filtrer les nouvelles lignes qui n'existent pas déjà dans stored_df
     new_rows = []
-
-    # Load client LLM
-    client = None
-    if not local_LLM:
-        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-
     for _, new_row in tqdm(new_df.iterrows(), total=len(new_df), desc="Traitement des offres récupérées"):
-        if not stored_df['link'].str.contains(new_row['link'], na=False).any():
+        if not new_row['hash'] in stored_df['hash'].values:
+            if not new_row['link'] in stored_df['link'].values:
+        # if not stored_df['link'].str.contains(new_row['link'], na=False).any():
             # Vérifier si le contenu est trop similaire à un contenu existant
-            if not any(is_similar(new_row['content'], existing_content) for existing_content in stored_df['content']):
-                new_row = add_LLM_comment(client, new_row)
+            # if not any(is_similar(new_row['content'], existing_content) for existing_content in stored_df['content']):
+                if use_llm:
+                    new_row = add_LLM_comment(client, llm_config, new_row)
                 new_rows.append(new_row)
 
     if new_rows:
@@ -109,14 +122,25 @@ def save_data(df):
     df.to_csv("data/job.csv", index=False, sep=";")
 
 
-def update_store_data(progress_dict, is_multiproc=True, local_LLM=False):
+def update_store_data(progress_dict):
     # Load env variable
-    load_dotenv()
+    # load_dotenv()
+    try:
+        config_file = "config.json"
+        with open(config_file, "r", encoding="utf-8") as f:
+            config = json.load(f)
 
-    new_df = get_all_job(progress_dict, is_multiproc)
-    store_df = get_store_data()
-    merged_df = merge_dataframes(store_df, new_df, local_LLM)
-    save_data(merged_df)
+        active_platforms = [Platform[key].value for key, active in config["launch_scrap"].items() if active]
+
+        new_df = get_all_job(progress_dict, active_platforms, config["use_multithreading"])
+        store_df = get_store_data()
+        merged_df = merge_dataframes(store_df, new_df, config["use_llm"], config["llm"])
+        save_data(merged_df)
+
+        return True
+    except Exception as e:
+        print(e)
+        return False
 
 
 if __name__ == "__main__":
@@ -125,7 +149,7 @@ if __name__ == "__main__":
         "Linkedin": (0, 0),
         "Apec": (0, 0),
     }
-    update_store_data(progress_dict, True, True)
+    update_store_data(progress_dict)
 
 
 

@@ -1,9 +1,14 @@
 import requests
 import pandas as pd
+import json
+import hashlib
 
 class JobFinder:
 
-    def formatData(self, list_title, list_content, list_company, list_link, list_datetime):
+    def formatData(self, plateforme, list_title, list_content, list_company, list_link, list_datetime):
+        def generate_hash(text):
+            return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
         data = {
             "title": list_title,
             "content": list_content,
@@ -15,11 +20,15 @@ class JobFinder:
             "is_refused": 0,
             "is_good_offer": 1,
             "comment": "",
-            "score": 0,
-            "custom_profile": ""
+            "score": -1,
+            "custom_profile": "",
+            "hash": [generate_hash(plateforme + title + company + content + str(datetime)) for title, content, company, datetime in zip(list_title, list_content, list_company, list_datetime)]
         }
         df = pd.DataFrame(data=data)
-        df["date"] = pd.to_datetime(df["date"]).dt.date
+        if plateforme == "apec":
+            df["date"] = pd.to_datetime(df["date"], dayfirst=True).dt.date
+        else:
+            df["date"] = pd.to_datetime(df["date"]).dt.date
         return df
 
 

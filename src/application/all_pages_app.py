@@ -2,6 +2,8 @@ import streamlit as st
 import threading
 import time
 import pandas as pd
+import json
+import os
 
 from main import update_store_data
 
@@ -14,6 +16,121 @@ def get_color(score):
     g = int(score * 2.55)
     return f"rgb({r},{g},0)"
 
+def configuration_page():
+    # 🔄 Chemin du fichier de config
+    CONFIG_FILE = "config.json"
+    DEFAULT_CONFIG_FILE = "config_default.json"
+
+    # 🧩 Charger la configuration actuelle
+    def load_config():
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        else:
+            return {
+                "keywords": [],
+                "url": {
+                    "wttj": "",
+                    "apec": "",
+                    "linkedin": ""
+                },
+                "launch_scrap": {
+                    "wttj": False,
+                    "apec": False,
+                    "linkedin": False
+                },
+                "use_multithreading": False,
+                "use_llm": False,
+                "llm": {
+                    "local": False,
+                    "gpt_api_key": "",
+                    "generate_score": False,
+                    "prompt_score": "",
+                    "generate_custom_profile": False,
+                    "prompt_custom_profile": "",
+                    "cv": ""
+                }
+            }
+
+    # 💾 Sauvegarder la configuration
+    def save_config(config):
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+
+    # 🔁 Réinitialiser la configuration depuis config_default.json
+    def reset_config():
+        if os.path.exists(DEFAULT_CONFIG_FILE):
+            with open(DEFAULT_CONFIG_FILE, "r", encoding="utf-8") as f:
+                default_config = json.load(f)
+            save_config(default_config)
+            return True
+        else:
+            return False
+
+    # 🔧 Interface utilisateur Streamlit
+    st.title("🔧 Configuration du Scraper")
+
+    config = load_config()
+
+    # 🎯 Section mots-clés
+    st.header("🔑 Mots-clés")
+    keywords = st.text_area("Entrez les mots-clés (un par ligne)", "\n".join(config["keywords"]))
+    config["keywords"] = [k.strip() for k in keywords.splitlines() if k.strip()]
+
+    # 🌐 Section URLs
+    st.header("🔗 URLs des sites")
+    config["url"]["wttj"] = st.text_input("WTTJ URL", config["url"]["wttj"])
+    config["url"]["apec"] = st.text_input("APEC URL", config["url"]["apec"])
+    config["url"]["linkedin"] = st.text_input("LinkedIn URL", config["url"]["linkedin"])
+
+    # 🚀 Sites à scraper
+    st.header("📡 Lancer le scraping sur :")
+    config["launch_scrap"]["wttj"] = st.checkbox("WTTJ", config["launch_scrap"]["wttj"])
+    config["launch_scrap"]["apec"] = st.checkbox("APEC", config["launch_scrap"]["apec"])
+    config["launch_scrap"]["linkedin"] = st.checkbox("LinkedIn", config["launch_scrap"]["linkedin"])
+
+    # ⚙️ Options générales
+    st.header("⚙️ Options générales")
+    config["use_multithreading"] = st.checkbox(
+        "Utiliser le multithreading (permet de scrapper plusieurs sites en même temps mais demande plus de ressource)",
+        config["use_multithreading"])
+    config["use_llm"] = st.checkbox("Utiliser un LLM", config["use_llm"])
+
+    # 🤖 Configuration LLM
+    if config["use_llm"]:
+        st.subheader("🧠 Paramètres du LLM")
+        config["llm"]["local"] = st.checkbox("LLM local", config["llm"]["local"])
+        if not config["llm"]["local"]:
+            config["llm"]["gpt_api_key"] = st.text_input("Clé API GPT (laissez vide si non utilisée)",
+                                                         config["llm"]["gpt_api_key"])
+        config["llm"]["generate_score"] = st.checkbox(
+            "Générer un score pour les offres et un commentaire (permet aussi de filtrer les offres 'score > 50')",
+            config["llm"]["generate_score"])
+        if config["llm"]["generate_score"]:
+            config["llm"]["prompt_score"] = st.text_area("Adapter le prompt à vos besoin sans changer la struture",
+                                                         config["llm"]["prompt_score"])
+        config["llm"]["generate_custom_profile"] = st.checkbox("Générer un profile en fonction de l'offre",
+                                                               config["llm"]["generate_custom_profile"])
+        if config["llm"]["generate_custom_profile"]:
+            config["llm"]["prompt_custom_profile"] = st.text_area("Entrez votre prompt pour générer votre profile",
+                                                                  config["llm"]["prompt_custom_profile"])
+            config["llm"]["cv"] = st.text_area("Le texte de votre CV afin de mieux adapter le résumé du profile",
+                                               config["llm"]["cv"])
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("💾 Sauvegarder la configuration"):
+            save_config(config)
+            st.success("Configuration sauvegardée avec succès !")
+
+    with col2:
+        if st.button("♻️ Réinitialiser la configuration"):
+            if reset_config():
+                st.success("Configuration réinitialisée depuis config_default.json.")
+                st.experimental_rerun()  # Recharge la page avec les nouvelles valeurs
+            else:
+                st.error("Fichier config_default.json introuvable.")
 
 def scrapping_page():
     st.title("🔍 Scraping d'offres d’emploi")
@@ -66,9 +183,11 @@ def scrapping_page():
             st.session_state.progress_bars[k].progress(0, text=f"{k} (0 offres - 0%)")
 
         def run(progress_dict):
-            update_store_data(progress_dict, True, True)
+            success = update_store_data(progress_dict)
+            result_container["success"] = success
 
         progress_dict = st.session_state.progress_dict
+        result_container = {}
         thread = threading.Thread(target=run, args=(progress_dict,))
         thread.start()
 
@@ -88,12 +207,20 @@ def scrapping_page():
                     )
             time.sleep(0.2)
 
-        st.success("🎉 Scraping terminé !")
+        # Affiche le message en fonction du résultat
+        if result_container.get("success"):
+            st.success("🎉 Scraping terminé avec succès !")
+        else:
+            st.error("❌ Une erreur est survenue pendant le scraping.")
 
         # Réinitialisation des états
         st.session_state.scraping_running = False
         st.session_state.launch_clicked = False
         st.session_state.scraping_started = False
+
+    configuration_page()
+
+
 
 
 def new_offer_page(df):

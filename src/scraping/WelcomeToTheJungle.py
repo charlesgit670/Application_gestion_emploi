@@ -2,12 +2,14 @@ import pandas as pd
 from tqdm import tqdm
 import time
 import os
+import json
 from dotenv import load_dotenv
 from selenium.common import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import urllib.parse
+import re
 
 from scraping.JobFinder import JobFinder
 from scraping.utils import measure_time, create_driver
@@ -17,8 +19,14 @@ from scraping.utils import measure_time, create_driver
 class WelcomeToTheJungle(JobFinder):
 
     def __init__(self):
-        self.keywords = ["Data Scientist", "Machine Learning"]
-        self.url = "https://www.welcometothejungle.com/fr/jobs?refinementList%5Bcontract_type%5D%5B%5D=full_time&refinementList%5Bsectors.parent_reference%5D%5B%5D=industry-1&refinementList%5Bsectors.parent_reference%5D%5B%5D=public-administration-1&refinementList%5Bsectors.reference%5D%5B%5D=artificial-intelligence-machine-learning&refinementList%5Bsectors.reference%5D%5B%5D=big-data-1&refinementList%5Bsectors.reference%5D%5B%5D=cyber-security&refinementList%5Blanguage%5D%5B%5D=fr&refinementList%5Boffices.country_code%5D%5B%5D=FR&query={}&page=1&aroundQuery=Nanterre%2C%20France&searchTitle=false&aroundLatLng=48.88822%2C2.19428&aroundRadius=20"
+        # self.keywords = ["Data Scientist", "Machine Learning"]
+        # self.url = "https://www.welcometothejungle.com/fr/jobs?refinementList%5Bcontract_type%5D%5B%5D=full_time&refinementList%5Bsectors.parent_reference%5D%5B%5D=industry-1&refinementList%5Bsectors.parent_reference%5D%5B%5D=public-administration-1&refinementList%5Bsectors.reference%5D%5B%5D=artificial-intelligence-machine-learning&refinementList%5Bsectors.reference%5D%5B%5D=big-data-1&refinementList%5Bsectors.reference%5D%5B%5D=cyber-security&refinementList%5Blanguage%5D%5B%5D=fr&refinementList%5Boffices.country_code%5D%5B%5D=FR&query={}&page=1&aroundQuery=Nanterre%2C%20France&searchTitle=false&aroundLatLng=48.88822%2C2.19428&aroundRadius=20"
+        self.get_config()
+    def get_config(self):
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        self.keywords = config['keywords']
+        self.url = re.sub(r'query=[^&]*', 'query={}', config['url']['wttj'])
 
     def build_urls(self):
         list_url = []
@@ -74,7 +82,6 @@ class WelcomeToTheJungle(JobFinder):
     @measure_time
     def getJob(self, update_callback=None):
         driver = create_driver()
-        df = pd.DataFrame()
         list_urls = self.build_urls()
 
         # Stocker tous les jobs trouvés
@@ -126,15 +133,24 @@ class WelcomeToTheJungle(JobFinder):
                     print("Fin de pagination")
                     break
 
+        # Elimination des doublons
+        seen_links = set()
+        unique_jobs = []
+
+        for job in all_jobs:
+            link = job[2]
+            if link not in seen_links:
+                unique_jobs.append(job)
+                seen_links.add(link)
         # Récupérer le contenu de toutes les fiches de poste
-        print(f"Nombre de fiche de poste WelcomeToTheJungle récupéré {len(all_jobs)}")
+        print(f"Nombre de fiche de poste WelcomeToTheJungle récupéré {len(unique_jobs)}")
         list_title = []
         list_content = []
         list_company = []
         list_link = []
         list_datetime = []
-        total = len(all_jobs)
-        for i, (title, comp, link, datetime) in enumerate(all_jobs):
+        total = len(unique_jobs)
+        for i, (title, comp, link, datetime) in enumerate(unique_jobs):
         # for title, comp, link, datetime in tqdm(all_jobs):
             driver.get(link)
 
@@ -178,7 +194,7 @@ class WelcomeToTheJungle(JobFinder):
 
         driver.quit()
 
-        df = self.formatData(list_title, list_content, list_company, list_link, list_datetime)
+        df = self.formatData("wttj", list_title, list_content, list_company, list_link, list_datetime)
         df = df.drop_duplicates(subset="link", keep="first")
         return df
 

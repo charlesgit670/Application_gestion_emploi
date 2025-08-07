@@ -1,5 +1,7 @@
 from tqdm import tqdm
 import pandas as pd
+import json
+import re
 import math
 import time
 import random
@@ -14,10 +16,19 @@ from scraping.utils import measure_time
 class Linkedin(JobFinder):
 
     def __init__(self):
-        self.keywords = ["Data Scientist", "Machine Learning"]
-        self.url = 'https://www.linkedin.com/jobs/search?keywords={}&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=5&f_JT=F&f_E=2%2C3%2C4&f_PP=102924436%2C103424094%2C106218810&f_TPR=r2592000&position=1&pageNum=0'
-        self.job_id_api = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={}&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=5&f_JT=F&f_E=2%2C3%2C4&f_PP=102924436%2C103424094%2C106218810&f_TPR=r2592000&position=1&pageNum=0&start={}'
+        self.get_config()
+        # self.keywords = ["Data Scientist", "Machine Learning"]
+        # self.url = 'https://www.linkedin.com/jobs/search?keywords={}&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=5&f_JT=F&f_E=2%2C3%2C4&f_PP=102924436%2C103424094%2C106218810&f_TPR=r2592000&position=1&pageNum=0'
+        # self.job_id_api = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={}&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=5&f_JT=F&f_E=2%2C3%2C4&f_PP=102924436%2C103424094%2C106218810&f_TPR=r2592000&position=1&pageNum=0&start={}'
         self.job_description_api = 'https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}'
+
+    def get_config(self):
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        self.keywords = config['keywords']
+        self.url = re.sub(r'keywords=[^&]*', 'keywords={}', config['url']['linkedin'])
+        self.job_id_api = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" + self.url.split("search?")[1] + "&start={}"
+
     @measure_time
     def getJob(self, update_callback=None):
         # Récupérer le nombre total d'offre
@@ -69,7 +80,7 @@ class Linkedin(JobFinder):
             if update_callback:
                 update_callback(i + 1, total)
 
-        return self.formatData(list_title, list_content, list_company, list_link, list_datetime)
+        return self.formatData("linkedin", list_title, list_content, list_company, list_link, list_datetime)
 
     @backoff.on_exception(backoff.expo, (HTTPError, RequestException), giveup=lambda e: e.response is not None and e.response.status_code != 429)
     def get_job_details(self, job_id):
