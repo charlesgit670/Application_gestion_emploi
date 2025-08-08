@@ -1,10 +1,10 @@
 import pandas as pd
 import os
 import json
-from rapidfuzz import fuzz
+# from rapidfuzz import fuzz
 from datetime import datetime
 import shutil
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from openai import OpenAI
 # from mistralai import Mistral
 from tqdm import tqdm
@@ -77,12 +77,12 @@ def get_store_data():
                                      "custom_profile",
                                      "hash"])
 
-def is_similar(content1, content2, threshold=95):
-    """Compare deux contenus textuels et retourne True s'ils sont similaires à plus de 'threshold%'."""
-    if pd.isna(content1) or pd.isna(content2):
-        return False
-    similarity = fuzz.ratio(content1, content2)
-    return similarity >= threshold
+# def is_similar(content1, content2, threshold=95):
+#     """Compare deux contenus textuels et retourne True s'ils sont similaires à plus de 'threshold%'."""
+#     if pd.isna(content1) or pd.isna(content2):
+#         return False
+#     similarity = fuzz.ratio(content1, content2)
+#     return similarity >= threshold
 
 def merge_dataframes(stored_df, new_df, use_llm, llm_config):
     """Ajoute les nouvelles entrées du new_df à stored_df en vérifiant l'unicité sur 'link' et la similarité sur 'content'."""
@@ -95,7 +95,8 @@ def merge_dataframes(stored_df, new_df, use_llm, llm_config):
 
     if stored_df.empty:
         if use_llm:
-            new_df = new_df.apply(lambda row: add_LLM_comment(client, llm_config, row), axis=1)
+            tqdm.pandas()
+            new_df = new_df.progress_apply(lambda row: add_LLM_comment(client, llm_config, row), axis=1)
         return new_df
 
     # Filtrer les nouvelles lignes qui n'existent pas déjà dans stored_df

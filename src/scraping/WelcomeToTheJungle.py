@@ -1,9 +1,9 @@
-import pandas as pd
-from tqdm import tqdm
+# import pandas as pd
+# from tqdm import tqdm
 import time
-import os
+# import os
 import json
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from selenium.common import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -35,38 +35,38 @@ class WelcomeToTheJungle(JobFinder):
             list_url.append(self.url.format(keyword))
         return list_url
 
-    def __login(self, driver):
-        load_dotenv()
-
-        WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-testid='not-logged-visible-login-button']"))
-        ).click()
-
-        time.sleep(1)
-
-        # Remplir le champ email
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.ID, "email_login"))
-        ).send_keys(os.environ.get("EMAIL_WTTJ"))
-
-        # Remplir le champ mot de passe
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.ID, "password"))
-        ).send_keys(os.environ.get("PWD_WTTJ"))
-
-        # Soumettre le formulaire
-        soumettre = WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.ID, "login-button-submit"))
-        )
-        # Scroll vers l'élément (important en headless)
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", soumettre)
-
-        WebDriverWait(driver, 5).until(
-            EC.element_to_be_clickable((By.ID, "login-button-submit"))
-        )
-        soumettre.click()
-
-        print("✅ Connexion réussie.")
+    # def __login(self, driver):
+    #     load_dotenv()
+    #
+    #     WebDriverWait(driver, 10).until(
+    #         EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-testid='not-logged-visible-login-button']"))
+    #     ).click()
+    #
+    #     time.sleep(1)
+    #
+    #     # Remplir le champ email
+    #     WebDriverWait(driver, 5).until(
+    #         EC.presence_of_element_located((By.ID, "email_login"))
+    #     ).send_keys(os.environ.get("EMAIL_WTTJ"))
+    #
+    #     # Remplir le champ mot de passe
+    #     WebDriverWait(driver, 5).until(
+    #         EC.presence_of_element_located((By.ID, "password"))
+    #     ).send_keys(os.environ.get("PWD_WTTJ"))
+    #
+    #     # Soumettre le formulaire
+    #     soumettre = WebDriverWait(driver, 5).until(
+    #         EC.element_to_be_clickable((By.ID, "login-button-submit"))
+    #     )
+    #     # Scroll vers l'élément (important en headless)
+    #     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", soumettre)
+    #
+    #     WebDriverWait(driver, 5).until(
+    #         EC.element_to_be_clickable((By.ID, "login-button-submit"))
+    #     )
+    #     soumettre.click()
+    #
+    #     print("✅ Connexion réussie.")
 
     def __close_cookie_banner(self, driver):
         # Fermer la bannière de cookies si elle est présente

@@ -18,7 +18,7 @@ def load_data():
 
         return df
     else:
-        return pd.DataFrame(columns=["title", "content", "company", "link", "date", "is_read", "is_apply", "is_refused", "is_good_offer", "comment", "custom_profile", "days_diff"])
+        return pd.DataFrame(columns=["title", "content", "company", "link", "date", "is_read", "is_apply", "is_refused", "is_good_offer", "comment", "score", "custom_profile", "days_diff"])
 
 
 df = load_data()

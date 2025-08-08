@@ -1,0 +1,10 @@
+pandas
+tqdm
+openai
+ollama
+backoff
+requests
+beautifulsoup4
+selenium
+webdriver-manager
+streamlit
