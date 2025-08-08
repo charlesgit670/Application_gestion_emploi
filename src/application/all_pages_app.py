@@ -248,14 +248,15 @@ def new_offer_page(df):
             else "Date de publication non renseignée"
         )
         score = int(job["score"])
-        color = get_color(score)
-        st.markdown(f"""
-           <div style="margin: 20px 0; width: 60%; background-color: #eee; border-radius: 5px;">
-             <div style="width: {score}%; background-color: {color}; padding: 10px 0; border-radius: 5px; text-align: center; color: white; font-weight: bold;">
-               {score}%
-             </div>
-           </div>
-           """, unsafe_allow_html=True)
+        if score != -1:
+            color = get_color(score)
+            st.markdown(f"""
+               <div style="margin: 20px 0; width: 60%; background-color: #eee; border-radius: 5px;">
+                 <div style="width: {score}%; background-color: {color}; padding: 10px 0; border-radius: 5px; text-align: center; color: white; font-weight: bold;">
+                   {score}%
+                 </div>
+               </div>
+               """, unsafe_allow_html=True)
         with st.expander("💬 Commentaire"):
             st.write(job["comment"])
         with st.expander("Proposition de description de profile"):
