@@ -132,7 +132,9 @@ class Apec(JobFinder):
 
         driver.quit()
 
-        return self.formatData("apec", list_title, list_content, list_company, list_link, list_datetime)
+        df = self.formatData("apec", list_title, list_content, list_company, list_link, list_datetime)
+        df = df.drop_duplicates(subset="hash", keep="first")
+        return df
 
 
 if __name__ == "__main__":

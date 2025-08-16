@@ -80,7 +80,9 @@ class Linkedin(JobFinder):
             if update_callback:
                 update_callback(i + 1, total)
 
-        return self.formatData("linkedin", list_title, list_content, list_company, list_link, list_datetime)
+        df = self.formatData("linkedin", list_title, list_content, list_company, list_link, list_datetime)
+        df = df.drop_duplicates(subset="hash", keep="first")
+        return df
 
     @backoff.on_exception(backoff.expo, (HTTPError, RequestException), giveup=lambda e: e.response is not None and e.response.status_code != 429)
     def get_job_details(self, job_id):

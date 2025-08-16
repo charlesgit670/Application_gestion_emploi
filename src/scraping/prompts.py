@@ -33,7 +33,7 @@ instruction_scoring = """
 
 instruction_custom_profile = """
 Répond par un paragraphe qui est une amélioration de la partie sur l'Objectif professionnel afin qu'elle corresponde
-mieux avec l'offre d'emploi. Rédige en français et un maximum de 130 tokens"
+mieux avec l'offre d'emploi. Rédige en français et un maximum de 130 tokens
 """
 
 my_resume = """

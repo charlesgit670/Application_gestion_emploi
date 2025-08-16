@@ -79,6 +79,13 @@ class WelcomeToTheJungle(JobFinder):
         except:
             print("Aucune bannière de cookies détectée.")
 
+        try:
+            btn = driver.find_element(By.XPATH, "//button[span[text()='Créer une alerte']]")
+            driver.execute_script("arguments[0].style.display = 'none';", btn)
+            print("Bouton alerte fermé.")
+        except:
+            print("Aucune bouton alterte détecté.")
+
     @measure_time
     def getJob(self, update_callback=None):
         driver = create_driver()
@@ -89,7 +96,7 @@ class WelcomeToTheJungle(JobFinder):
         for url in list_urls:
             driver.get(url)
 
-            self.__close_cookie_banner(driver)
+            # self.__close_cookie_banner(driver)
             # self.__login(driver)
 
             count = 1
@@ -156,7 +163,7 @@ class WelcomeToTheJungle(JobFinder):
 
             for attempt in range(3):
                 try:
-                    voir_plus = WebDriverWait(driver, 10).until(
+                    voir_plus = WebDriverWait(driver, 3).until(
                         EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
                     )
 
@@ -195,7 +202,7 @@ class WelcomeToTheJungle(JobFinder):
         driver.quit()
 
         df = self.formatData("wttj", list_title, list_content, list_company, list_link, list_datetime)
-        df = df.drop_duplicates(subset="link", keep="first")
+        df = df.drop_duplicates(subset="hash", keep="first")
         return df
 
 

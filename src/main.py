@@ -22,7 +22,7 @@ class Platform(Enum):
     apec = Apec
     linkedin = Linkedin
 
-def get_all_job(progress_dict, all_platforms, is_multiproc=True):
+def get_all_job(progress_dict, all_platforms, is_multiproc):
 
     def run_source(source_class):
         name = source_class.__name__
@@ -39,7 +39,7 @@ def get_all_job(progress_dict, all_platforms, is_multiproc=True):
     else:
         results = []
         for cls in all_platforms:
-            results.append(cls.getJob())
+            results.append(run_source(cls))
 
     return pd.concat(results)
 
