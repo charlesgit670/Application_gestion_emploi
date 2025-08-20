@@ -105,22 +105,27 @@ class WelcomeToTheJungle(JobFinder):
 
                 self.__close_cookie_banner(driver)
 
-                job_elements = WebDriverWait(driver, 3).until(
-                    EC.presence_of_all_elements_located((By.XPATH, "//div[@class='sc-dnvCov jHazFR']"))
+                job_cards = WebDriverWait(driver, 5).until(
+                    EC.presence_of_all_elements_located(
+                        (By.XPATH, "//li[@data-testid='search-results-list-item-wrapper']"))
                 )
 
-                job_company = WebDriverWait(driver, 3).until(
-                    EC.presence_of_all_elements_located((By.XPATH, "//span[@class='sc-izXThL fFdRYJ sc-dQnwSX iNIwQv wui-text']"))
-                )
+                for card in job_cards:
 
-                for job, comp in zip(job_elements, job_company):
-                    # job.find_element(By.TAG_NAME, "a")
-                    title = job.find_element(By.TAG_NAME, "a").text
-                    link = job.find_element(By.TAG_NAME, "a").get_attribute('href')
-                    company = comp.text
-                    datetime = job.find_element(By.TAG_NAME, "time").get_attribute("datetime")
-                    if title and link:
+                    # titre du job
+                    title_elem = card.find_element(By.XPATH, ".//a[h2]")
+                    title = title_elem.text.strip()
+                    link = title_elem.get_attribute("href")
+
+                    # nom de l’entreprise
+                    company_elem = card.find_element(By.XPATH, ".//span[contains(concat(' ', normalize-space(@class), ' '), ' wui-text ')]")
+                    company = company_elem.text.strip()
+
+                    datetime = card.find_element(By.TAG_NAME, "time").get_attribute("datetime")
+
+                    if title and link and company and datetime:
                         all_jobs.append((title, company, link, datetime))
+
 
                 # Vérifier si un bouton "Page suivante" est actif
                 try:
