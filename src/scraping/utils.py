@@ -8,10 +8,13 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 import backoff
 from ollama import generate
+from pydantic import BaseModel
 
 # from scraping.prompts import my_resume, instruction_custom_profile, instruction_scoring
 
-
+class Format(BaseModel):
+    response: int
+    justification: str
 
 def measure_time(func):
     """Annotation pour mesurer le temps d'exécution d'une fonction"""
@@ -56,7 +59,7 @@ def add_LLM_comment(client_LLM, llm_config, row):
         company = row["company"]
         description = row["content"]
 
-        if client_LLM == None:
+        if llm_config["provider"] == "Local":
             response = generate(
                 model="gemma3:12b",
                 options={
@@ -77,21 +80,38 @@ def add_LLM_comment(client_LLM, llm_config, row):
 
             )
             json_output = json.loads(response.response)
-        else:
-            response = client_LLM.responses.create(
+        elif llm_config["provider"] == "ChatGPT":
+            response = client_LLM.responses.parse(
                 model="gpt-4o-mini",
                 instructions=llm_config["prompt_score"],
-                temperature=0,
+                temperature=0.1,
                 input=company + "\n" + title + "\n" + description,
+                text_format=Format
             )
-            output_text = response.output_text
-            match = re.search(r'\{.*\}', output_text, re.DOTALL)
-            if match:
-                json_string = match.group(0)
-                json_output = json.loads(json_string)
-            else:
-                print("!!! Error LLM response !!!")
-                print(response.output_text)
+            json_output = json.loads(response.output_text)
+        elif llm_config["provider"] == "Mistral":
+            chat_response = client_LLM.chat.complete(
+                model="mistral-large-latest",
+                temperature=0.1,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": llm_config["prompt_score"] + "\n" + company + "\n" + title + "\n" + description,
+                    },
+                ],
+                response_format={
+                    "type": "json_object",
+                    "json_schema": {
+                        "reponse": {
+                            "type": "integer"
+                        },
+                        "justification": {
+                            "type": "string",
+                        },
+                    }
+                }
+            )
+            json_output = json.loads(chat_response.choices[0].message.content)
 
         row["is_good_offer"] = 1 if int(json_output["reponse"]) >= 50 else 0
         row["comment"] = json_output["justification"]
@@ -106,7 +126,7 @@ def add_LLM_comment(client_LLM, llm_config, row):
 
 
 def add_custom_cv_profile(client_LLM, llm_config, row):
-    if client_LLM == None:
+    if llm_config["provider"] == "Local":
         response = generate(
             model="gemma3:12b",
             options={
@@ -115,8 +135,7 @@ def add_custom_cv_profile(client_LLM, llm_config, row):
             prompt=llm_config["cv"] + "\n" + row["content"] + "\n" + llm_config["prompt_custom_profile"],
         )
         output_text = response.response
-
-    else:
+    elif llm_config["provider"] == "ChatGPT":
         response = client_LLM.responses.create(
             model="gpt-4o-mini",
             instructions=llm_config["prompt_custom_profile"],
@@ -124,6 +143,18 @@ def add_custom_cv_profile(client_LLM, llm_config, row):
             input=llm_config["cv"] + "\n" + row["content"],
         )
         output_text = response.output_text
+    elif llm_config["provider"] == "Mistral":
+        chat_response = client_LLM.chat.complete(
+            model="mistral-large-latest",
+            temperature=0.1,
+            messages=[
+                {
+                    "role": "user",
+                    "content": llm_config["cv"] + "\n" + row["content"],
+                },
+            ],
+        )
+        output_text = chat_response.choices[0].message.content
 
     return output_text
 

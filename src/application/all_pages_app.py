@@ -42,8 +42,9 @@ def configuration_page():
                 "use_multithreading": False,
                 "use_llm": False,
                 "llm": {
-                    "local": False,
+                    "provider": "Local",
                     "gpt_api_key": "",
+                    "mistral_api_key": "",
                     "generate_score": False,
                     "prompt_score": "",
                     "generate_custom_profile": False,
@@ -99,10 +100,32 @@ def configuration_page():
     # 🤖 Configuration LLM
     if config["use_llm"]:
         st.subheader("🧠 Paramètres du LLM")
-        config["llm"]["local"] = st.checkbox("LLM local", config["llm"]["local"])
-        if not config["llm"]["local"]:
-            config["llm"]["gpt_api_key"] = st.text_input("Clé API GPT (laissez vide si non utilisée)",
-                                                         config["llm"]["gpt_api_key"])
+
+        # config["llm"]["local"] = st.checkbox("LLM local", config["llm"]["local"])
+        # if not config["llm"]["local"]:
+        #     config["llm"]["gpt_api_key"] = st.text_input("Clé API GPT (laissez vide si non utilisée)",
+        #                                                  config["llm"]["gpt_api_key"])
+
+        # Choix du LLM : local, ChatGPT ou Mistral
+        config["llm"]["provider"] = st.radio(
+            "Choisissez le fournisseur LLM :",
+            ["Local", "ChatGPT", "Mistral"],
+            index=["Local", "ChatGPT", "Mistral"].index(config["llm"].get("provider", "Local"))
+        )
+
+        # Gestion des champs selon le choix
+        if config["llm"]["provider"] == "ChatGPT":
+            config["llm"]["gpt_api_key"] = st.text_input(
+                "Clé API GPT",
+                config["llm"].get("gpt_api_key", "")
+            )
+
+        elif config["llm"]["provider"] == "Mistral":
+            config["llm"]["mistral_api_key"] = st.text_input(
+                "Clé API Mistral",
+                config["llm"].get("mistral_api_key", "")
+            )
+
         config["llm"]["generate_score"] = st.checkbox(
             "Générer un score pour les offres et un commentaire (permet aussi de filtrer les offres 'score > 50')",
             config["llm"]["generate_score"])
@@ -147,6 +170,7 @@ def scrapping_page():
             "WelcomeToTheJungle": (0, 1),
             "Linkedin": (0, 1),
             "Apec": (0, 1),
+            "Traitement des nouvelles offres (LLM)": (0, 1),
         }
     if "progress_bars" not in st.session_state:
         st.session_state.progress_bars = {}

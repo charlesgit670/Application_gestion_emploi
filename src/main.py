@@ -6,7 +6,7 @@ from datetime import datetime
 import shutil
 # from dotenv import load_dotenv
 from openai import OpenAI
-# from mistralai import Mistral
+from mistralai import Mistral
 from tqdm import tqdm
 from enum import Enum
 
@@ -84,14 +84,18 @@ def get_store_data():
 #     similarity = fuzz.ratio(content1, content2)
 #     return similarity >= threshold
 
-def merge_dataframes(stored_df, new_df, use_llm, llm_config):
+def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config):
     """Ajoute les nouvelles entrées du new_df à stored_df en vérifiant l'unicité sur 'link' et la similarité sur 'content'."""
 
     # Load client LLM
     client = None
-    if use_llm and not llm_config["local"]:
-        client = OpenAI(api_key=llm_config["gpt_api_key"])
-
+    if use_llm:
+        if llm_config["provider"] == "ChatGPT":
+            client = OpenAI(api_key=llm_config.get("gpt_api_key"))
+        elif llm_config["provider"] == "Mistral":
+            client = Mistral(api_key=llm_config.get("mistral_api_key"))
+        elif llm_config["provider"] == "Local":
+            client = None
 
     if stored_df.empty:
         if use_llm:
@@ -101,15 +105,19 @@ def merge_dataframes(stored_df, new_df, use_llm, llm_config):
 
     # Filtrer les nouvelles lignes qui n'existent pas déjà dans stored_df
     new_rows = []
-    for _, new_row in tqdm(new_df.iterrows(), total=len(new_df), desc="Traitement des offres récupérées"):
+    # for _, new_row in tqdm(new_df.iterrows(), total=len(new_df), desc="Traitement des offres récupérées"):
+    for _, new_row in new_df.iterrows():
         if not new_row['hash'] in stored_df['hash'].values:
             if not new_row['link'] in stored_df['link'].values:
         # if not stored_df['link'].str.contains(new_row['link'], na=False).any():
             # Vérifier si le contenu est trop similaire à un contenu existant
             # if not any(is_similar(new_row['content'], existing_content) for existing_content in stored_df['content']):
-                if use_llm:
-                    new_row = add_LLM_comment(client, llm_config, new_row)
                 new_rows.append(new_row)
+
+    for i, new_row in tqdm(enumerate(new_rows), total=len(new_rows), desc="Traitement des offres récupérées"):
+        if use_llm:
+            new_rows[i] = add_LLM_comment(client, llm_config, new_row)
+        progress_dict["Traitement des nouvelles offres (LLM)"] = (i + 1, len(new_rows))
 
     if new_rows:
         new_data = pd.DataFrame(new_rows)
@@ -135,7 +143,7 @@ def update_store_data(progress_dict):
 
         new_df = get_all_job(progress_dict, active_platforms, config["use_multithreading"])
         store_df = get_store_data()
-        merged_df = merge_dataframes(store_df, new_df, config["use_llm"], config["llm"])
+        merged_df = merge_dataframes(progress_dict, store_df, new_df, config["use_llm"], config["llm"])
         save_data(merged_df)
 
         return True
@@ -146,9 +154,10 @@ def update_store_data(progress_dict):
 
 if __name__ == "__main__":
     progress_dict = {
-        "WelcomeToTheJungle": (0, 0),
-        "Linkedin": (0, 0),
-        "Apec": (0, 0),
+        "WelcomeToTheJungle": (0, 1),
+        "Linkedin": (0, 1),
+        "Apec": (0, 1),
+        "Traitement des nouvelles offres (LLM)": (0, 1)
     }
     update_store_data(progress_dict)
 
