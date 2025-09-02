@@ -18,7 +18,7 @@
   "llm": {
     "provider": "Mistral",
     "gpt_api_key": "",
-    "mistral_api_key": "AJOxuDeTTIX0oO8gCgnGqA4Ziv9MojON",
+    "mistral_api_key": "",
     "generate_score": true,
     "prompt_score": "Je suis a la recherche d'un CDI en tant que data scientist :\n        Ce que je veux :\n        - Forte part de création de modèle de machine learning et modèle statistique\n        - Analyser et comprendre le résultat des modèles\n        - Préférence pour le secteur industriel comme l'énergie, l'écologie\n        - Utilisation du langage Python\n\n        Ce que je tolère :\n        - Préparation des données\n        - Industrialisation de modèles\n        - Présentation des résultats\n\n        Ce que je ne veux pas :\n        - Stage et alternance\n        - Un poste qui ressemble plus à data analyste ou data engineer\n        - Les secteurs bancaire, assurance, retails etc.\n\n        Ceux sont des préférences donc ne soit pas trop exigeant\n\n        Est-ce que l'offre ci-dessus pourrait correspondre à mes attentes ?\n        Répond en donnant un score d'interet pour l'offre entre 0 et 100 :\n        - moins de 50 si l'offre contient très peu de tache lié au machine learning \n        - supérieur à 50 si une forte part de machine learning \n        et justifie ton choix en énumérant tes arguments en quelques mots tout ça au format json suivant:\n        {\n        \"reponse\": \"score\",\n        \"justification\": \"Ta justification\"\n        }\n\n        Offres : ",
     "generate_custom_profile": false,
