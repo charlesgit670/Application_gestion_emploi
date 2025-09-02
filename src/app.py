@@ -10,7 +10,7 @@ DATA_FILE = "data/job.csv"
 
 def load_data():
     if os.path.exists(DATA_FILE):
-        df = pd.read_csv(DATA_FILE, sep=";")
+        df = pd.read_csv(DATA_FILE, sep=";", encoding="utf-8")
         df["date"] = pd.to_datetime(df["date"])
 
         today = pd.Timestamp(datetime.utcnow().date())

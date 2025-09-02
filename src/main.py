@@ -61,7 +61,7 @@ def get_store_data():
         # Copier le fichier
         shutil.copy(file_path, backup_file)
         print(f"Backup créé : {backup_file}")
-        return pd.read_csv(file_path, sep=";")
+        return pd.read_csv(file_path, sep=";", encoding="utf-8")
     else:
         return pd.DataFrame(columns=["title",
                                      "content",
@@ -128,7 +128,7 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config):
 def save_data(df):
     if not os.path.exists("data"):
         os.makedirs("data")
-    df.to_csv("data/job.csv", index=False, sep=";")
+    df.to_csv("data/job.csv", index=False, sep=";", encoding="utf-8")
 
 
 def update_store_data(progress_dict):

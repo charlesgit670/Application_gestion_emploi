@@ -9,7 +9,7 @@ from main import update_store_data
 
 
 def save_data(df, data_file="data/job.csv"):
-    df.to_csv(data_file, sep=";", index=False)
+    df.to_csv(data_file, sep=";", index=False, encoding="utf-8")
 
 def get_color(score):
     r = int(255 - (score * 2.55))

@@ -23,7 +23,7 @@ class Linkedin(JobFinder):
         self.job_description_api = 'https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}'
 
     def get_config(self):
-        with open('config.json', 'r') as f:
+        with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
         self.url = re.sub(r'keywords=[^&]*', 'keywords={}', config['url']['linkedin'])
