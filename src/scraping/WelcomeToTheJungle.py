@@ -23,7 +23,7 @@ class WelcomeToTheJungle(JobFinder):
         # self.url = "https://www.welcometothejungle.com/fr/jobs?refinementList%5Bcontract_type%5D%5B%5D=full_time&refinementList%5Bsectors.parent_reference%5D%5B%5D=industry-1&refinementList%5Bsectors.parent_reference%5D%5B%5D=public-administration-1&refinementList%5Bsectors.reference%5D%5B%5D=artificial-intelligence-machine-learning&refinementList%5Bsectors.reference%5D%5B%5D=big-data-1&refinementList%5Bsectors.reference%5D%5B%5D=cyber-security&refinementList%5Blanguage%5D%5B%5D=fr&refinementList%5Boffices.country_code%5D%5B%5D=FR&query={}&page=1&aroundQuery=Nanterre%2C%20France&searchTitle=false&aroundLatLng=48.88822%2C2.19428&aroundRadius=20"
         self.get_config()
     def get_config(self):
-        with open('config.json', 'r') as f:
+        with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
         self.url = re.sub(r'query=[^&]*', 'query={}', config['url']['wttj'])

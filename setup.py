@@ -6,6 +6,7 @@ build_exe_options = {
                  "pandas",
                  "tqdm",
                  "openai",
+                 "mistralai",
                  "ollama",
                  "backoff",
                  "requests",
@@ -20,7 +21,6 @@ build_exe_options = {
         "src/"
     ]
 }
-
 
 setup(
     name="App Gestion d'emploi",

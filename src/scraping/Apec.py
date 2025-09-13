@@ -18,7 +18,7 @@ class Apec(JobFinder):
         # self.url = "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles={}&lieux=596212&typesConvention=143684&typesConvention=143685&typesConvention=143686&typesConvention=143687&typesContrat=101888&page=0&distance=15"
 
     def get_config(self):
-        with open('config.json', 'r') as f:
+        with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
         self.url = re.sub(r'motsCles=[^&]*', 'motsCles={}', config['url']['apec'])
