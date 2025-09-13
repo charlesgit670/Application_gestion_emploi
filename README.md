@@ -1,94 +1,125 @@
 # Application de gestion de recherche d'emploi
 
-## Objectif
+## 🎯 Objectif
 
-L'application permet de scraper automatiquement plusieurs sites d'emploi et de gérer le suivi des offres récupérées.
-Actuellement, seuls **Welcome to the Jungle** et **Apec** sont pris en charge.
+Cette application permet de **scraper automatiquement plusieurs sites d'emploi** et de **gérer le suivi des offres récupérées**.  
+Elle propose également un **filtrage intelligent des offres via un LLM** (modèle de langage) grâce à un prompt adapté.  
 
-## Comment l'utiliser
+Actuellement, trois plateformes sont supportées :  
+- **LinkedIn**  
+- **Welcome to the Jungle**  
+- **Apec**
 
-### Configuration de l'URL à scraper
+---
 
-Pour personnaliser les offres récupérées, il est nécessaire de modifier manuellement l'URL dans la méthode `__init__` des fichiers **`WelcomeToTheJungle.py`**,  **`Apec.py`** et **`Linkedin.py`**. Cette URL doit correspondre aux filtres configurés sur le site concerné.
+## ⚙️ Principe de fonctionnement
 
-### Ajout de la clé API ChatGPT
+1. **Récupération** des offres depuis les sites d'emploi.  
+2. **Détection des nouvelles offres** en évitant les doublons :  
+   - Création d’un **hash unique** pour chaque offre (Plateforme + Titre + Entreprise + Description + Date de publication).  
+   - Suppression des doublons.  
+   - Comparaison avec la base existante pour ne garder que les nouvelles offres.  
+3. **Sauvegarde** des nouvelles offres.  
 
-- Créer un fichier .env à la racine du projet et ajouter la clé comme ceci :
-`OPENAI_API_KEY="your key"`
-- Modifier le prompt de la variable `instruction` afin de l'adapter à vos critères dans le fichier `src/scraping/utils.py`
+---
 
-### Mise à jour des offres d'emploi
+## 🚀 Lancer l'application
 
-Pour mettre à jour les données, exécutez le script **`main.py`**, qui effectue les étapes suivantes :
+1. Télécharger le projet.  
+2. Installer les dépendances via le fichier `requirements.txt` dans votre environnement Python.  
+3. Lancer l’application **Streamlit** depuis la racine du projet :  
 
-1. Récupération des offres des sites d'emploi.
-2. Identification des nouvelles offres en évitant les doublons en vérifiant :
-   - Si le lien est identique.
-   - Si la description du poste est similaire à plus de **95%**.
-3. Sauvegarde des nouvelles offres.
+   ```bash
+   streamlit run src/app.py
+   ```
 
-> **Remarque :** En cas d'erreur, relancez **`main.py`** une seconde fois (l'origine du problème est inconnue pour l'instant).
+4. (Optionnel) Créer un exécutable pour faciliter le lancement :  
 
-## Lancer l'application Streamlit
+   ```bash
+   python setup.py build
+   ```
+   Cela génère un dossier `build` contenant `run.exe`, qui démarre directement le serveur Streamlit.
 
-Pour lancer l'application Streamlit, exécutez la commande suivante :
-```sh
-streamlit run src/application/app.py
-```
+---
 
-## Fonctionnalités
+## 🔧 Configuration du Scraping
 
-### Nouvelles offres
+Sur la page **Mettre à jour les offres** :
+
+![configuration_page.png](imgs%2Fconfiguration_page.png)
+
+- **Sauvegarder la configuration** : indispensable pour que vos changements soient pris en compte.  
+- **Lancer le scrapping** : démarre le scraping selon vos paramètres.  
+- **Suivi en temps réel** : 4 barres de progression (une par jobboard + une pour le traitement LLM si activé).  
+- **Mots-clés** : un mot-clé par ligne.  
+- **URLs des sites** : collez l’URL de recherche issue des jobboards après avoir configuré les filtres comme la localisation (des exemples sont fournis).  
+- **Jobboards à scrapper** : cochez les plateformes souhaitées.  
+- **Options générales** :  
+  - Scraping en parallèle (à relancer si certains scrapers échouent).  
+  - Activation du LLM.  
+- **Paramètres du LLM** :  
+  - **Local** : nécessite [Ollama](https://ollama.ai/) avec le modèle *gemma3:12b*.  
+  - **ChatGPT** : nécessite une clé API (payant).  
+  - **Mistral** : nécessite une clé API (version gratuite limitée).  
+- **Générer un score** : attribue un score (0–100) et un commentaire pour chaque offre (le prompt doit garder le format fourni).  
+- **Générer un profil personnalisé** : en fournissant un prompt et votre CV, l’application génère un texte accrocheur adapté à chaque offre.  
+
+---
+
+## 📌 Fonctionnalités principales
+
+### 🆕 Nouvelles offres
 
 ![Nouvelles offres](imgs%2Fapp_new_job_img.png)
 
-Sur la page d'accueil **"Nouvelles offres d'emploi"**, vous trouverez :
+- Pagination (ex. **14/21**)  
+- Titre du poste et nom de l’entreprise  
+- Lien direct vers l’offre  
+- Score (0–100) + commentaire généré par GPT  
+- Description de l'offre  
+- Boutons disponibles :  
+  - **Suivant / Précédent**  
+  - **Postuler** → classe l’offre dans *Candidatures en cours*  
+  - **Marquer comme lue** → classe l’offre dans *Offres déjà lues*  
 
-- Une pagination à gauche du titre (ex. **1/13**).
-- L'intitulé du poste.
-- Le nom de l'entreprise.
-- Un lien vers l'offre sur le site source.
-- Un score entre 0 et 100 indiquant le degré de pertinence de l'offre
-- Commentaire écrit par le GPT
-- Une brève description de l'offre.
-- Des boutons **Suivant** et **Précédent**.
-- Un bouton **Postuler**, qui classe l'offre dans "Candidatures en cours" et la retire de cette page.
-- Un bouton **Marquer comme lu**, qui classe l'offre dans "Offres déjà lues" et la retire également.
+---
 
-### Offres filtrées par GPT
+### 🧹 Offres filtrées par GPT
 
 ![app_unintesresting_job_img.png](imgs%2Fapp_unintesresting_job_img.png)
 
-Dans l'onglet **"Offres filtrées par GPT""**, les offres ayant obtenues un score strictement inférieur à 50%
+- Contient les offres avec un score **< 50%**  
+- Affichage du score et du commentaire GPT  
+- Description consultable via un bouton déroulant  
+- **Restaurer** → replace l’offre dans *Nouvelles offres*  
 
-- Affichage du score
-- Commentaire fait par GPT
-- Vous pouvez afficher la description via un bouton déroulant.
-- Le bouton **Restaurer** permet de replacer l'offre dans "Nouvelles offres".
+---
 
-### Offres déjà lues
+### 📖 Offres déjà lues
 
 ![Offres déjà lues](imgs%2Fapp_already_seen_img.png)
 
-Dans l'onglet **"Offres déjà lues"**, vous trouverez les offres marquées comme lues.
+- Liste des offres marquées comme lues  
+- Description consultable via un bouton déroulant  
+- **Corbeille** → replace l’offre dans *Nouvelles offres*  
 
-- Vous pouvez afficher la description via un bouton déroulant.
-- Le bouton **Corbeille** permet de replacer l'offre dans "Nouvelles offres".
+---
 
-### Candidatures en cours
+### ⏳ Candidatures en cours
 
 ![Candidatures en cours](imgs%2Fapp_pending_img.png)
 
-Dans l'onglet **"Candidatures en cours"**, vous retrouverez les offres pour lesquelles vous avez postulé.
+- Liste des offres où vous avez postulé  
+- **Corbeille** → replace l’offre dans *Offres non lues*  
+- **Refusé** → classe l’offre dans *Candidatures refusées*  
 
-- Le bouton **Corbeille** replace l'offre dans "Offres non lues".
-- Le bouton **Refusé** classe l'offre dans "Candidatures refusées".
+---
 
-### Candidatures refusées
+### ❌ Candidatures refusées
 
 ![Candidatures refusées](imgs%2Fapp_refused_img.png)
 
-Dans l'onglet **"Candidatures refusées"**, vous trouverez les offres refusées.
+- Liste des candidatures refusées  
+- **Restaurer** → replace l’offre dans *Candidatures en cours*  
 
-- Un bouton **Restaurer** permet de replacer l'offre dans "Candidatures en cours".
-
+---
