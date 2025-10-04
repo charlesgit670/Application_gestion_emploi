@@ -13,6 +13,7 @@ from enum import Enum
 from scraping.WelcomeToTheJungle import WelcomeToTheJungle
 from scraping.Apec import Apec
 from scraping.Linkedin import Linkedin
+from scraping.ServicePublic import ServicePublic
 from scraping.utils import measure_time, add_LLM_comment
 from concurrent.futures import ThreadPoolExecutor
 
@@ -21,6 +22,7 @@ class Platform(Enum):
     wttj = WelcomeToTheJungle
     apec = Apec
     linkedin = Linkedin
+    sp = ServicePublic
 
 def get_all_job(progress_dict, all_platforms, is_multiproc):
 
@@ -157,6 +159,7 @@ if __name__ == "__main__":
         "WelcomeToTheJungle": (0, 1),
         "Linkedin": (0, 1),
         "Apec": (0, 1),
+        "ServicePublic": (0, 1),
         "Traitement des nouvelles offres (LLM)": (0, 1)
     }
     update_store_data(progress_dict)

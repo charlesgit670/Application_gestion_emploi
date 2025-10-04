@@ -32,12 +32,14 @@ def configuration_page():
                 "url": {
                     "wttj": "",
                     "apec": "",
-                    "linkedin": ""
+                    "linkedin": "",
+                    "sp": ""
                 },
                 "launch_scrap": {
                     "wttj": False,
                     "apec": False,
-                    "linkedin": False
+                    "linkedin": False,
+                    "sp": False
                 },
                 "use_multithreading": False,
                 "use_llm": False,
@@ -83,12 +85,14 @@ def configuration_page():
     config["url"]["wttj"] = st.text_input("WTTJ URL", config["url"]["wttj"])
     config["url"]["apec"] = st.text_input("APEC URL", config["url"]["apec"])
     config["url"]["linkedin"] = st.text_input("LinkedIn URL", config["url"]["linkedin"])
+    config["url"]["sp"] = st.text_input("Service Public URL", config["url"]["sp"])
 
     # 🚀 Sites à scraper
     st.header("📡 Lancer le scraping sur :")
     config["launch_scrap"]["wttj"] = st.checkbox("WTTJ", config["launch_scrap"]["wttj"])
     config["launch_scrap"]["apec"] = st.checkbox("APEC", config["launch_scrap"]["apec"])
     config["launch_scrap"]["linkedin"] = st.checkbox("LinkedIn", config["launch_scrap"]["linkedin"])
+    config["launch_scrap"]["sp"] = st.checkbox("Service Public", config["launch_scrap"]["sp"])
 
     # ⚙️ Options générales
     st.header("⚙️ Options générales")
@@ -170,6 +174,7 @@ def scrapping_page():
             "WelcomeToTheJungle": (0, 1),
             "Linkedin": (0, 1),
             "Apec": (0, 1),
+            "ServicePublic": (0, 1),
             "Traitement des nouvelles offres (LLM)": (0, 1),
         }
     if "progress_bars" not in st.session_state:

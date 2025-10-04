@@ -6,12 +6,14 @@
   "url": {
     "wttj": "https://www.welcometothejungle.com/fr/jobs?refinementList%5Bcontract_type%5D%5B%5D=full_time&refinementList%5Bsectors.parent_reference%5D%5B%5D=industry-1&refinementList%5Bsectors.parent_reference%5D%5B%5D=public-administration-1&refinementList%5Bsectors.reference%5D%5B%5D=artificial-intelligence-machine-learning&refinementList%5Bsectors.reference%5D%5B%5D=big-data-1&refinementList%5Bsectors.reference%5D%5B%5D=cyber-security&refinementList%5Blanguage%5D%5B%5D=fr&refinementList%5Boffices.country_code%5D%5B%5D=FR&query=Data%20Scientist&page=1&aroundQuery=Nanterre%2C%20France&searchTitle=false&aroundLatLng=48.88822%2C2.19428&aroundRadius=20",
     "apec": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Data%20Scientist&lieux=596212&typesConvention=143684&typesConvention=143685&typesConvention=143686&typesConvention=143687&typesContrat=101888&page=0&distance=15",
-    "linkedin": "https://www.linkedin.com/jobs/search?keywords=Data%20Scientist&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=5&f_JT=F&f_E=2%2C3%2C4&f_PP=102924436%2C103424094%2C106218810&f_TPR=r2592000&position=1&pageNum=0"
+    "linkedin": "https://www.linkedin.com/jobs/search?keywords=Data%20Scientist&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=5&f_JT=F&f_E=2%2C3%2C4&f_PP=102924436%2C103424094%2C106218810&f_TPR=r2592000&position=1&pageNum=0",
+    "sp": "https://choisirleservicepublic.gouv.fr/nos-offres/filtres/mot-cles/data%20scientist/localisation/283-284/domaine/3522/"
   },
   "launch_scrap": {
     "wttj": true,
     "apec": true,
-    "linkedin": true
+    "linkedin": true,
+    "sp": true
   },
   "use_multithreading": true,
   "use_llm": true,
