@@ -13,7 +13,8 @@ build_exe_options = {
                  "bs4",
                  "selenium",
                  "webdriver_manager",
-                 "streamlit"],
+                 "streamlit",
+                 "dateparser"],
     "include_files": [
         "README.md",
         "config.json",
