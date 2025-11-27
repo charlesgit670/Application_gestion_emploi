@@ -375,7 +375,7 @@ def offer_readed_page(df):
 
             with col2:
                 # Bouton de suppression à droite
-                if st.button("🗑️", key=f"delete_{index}"):
+                if st.button("🔄 Restaurer", key=f"delete_{index}"):
                     df.loc[df["link"] == job["link"], ["is_apply", "is_read"]] = 0
                     save_data(df)
                     st.rerun()

@@ -3,13 +3,15 @@
 import time
 # import os
 import json
+import re
+from datetime import datetime as dt, timezone
 # from dotenv import load_dotenv
 from selenium.common import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
 import urllib.parse
-import re
 
 from scraping.JobFinder import JobFinder
 from scraping.utils import measure_time, create_driver
@@ -121,7 +123,11 @@ class WelcomeToTheJungle(JobFinder):
                     company_elem = card.find_element(By.XPATH, ".//span[contains(concat(' ', normalize-space(@class), ' '), ' wui-text ')]")
                     company = company_elem.text.strip()
 
-                    datetime = card.find_element(By.TAG_NAME, "time").get_attribute("datetime")
+                    # gestion de la date ou du bouton "Sponsorisé"
+                    try:
+                        datetime = card.find_element(By.TAG_NAME, "time").get_attribute("datetime")
+                    except NoSuchElementException:
+                        datetime = dt.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
                     if title and link and company and datetime:
                         all_jobs.append((title, company, link, datetime))
