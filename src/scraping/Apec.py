@@ -72,10 +72,16 @@ class Apec(JobFinder):
 
             # Vérifier si un bouton "Page suivante" est actif
             try:
-                next_button = WebDriverWait(driver, 2).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "li.page-item.next a.page-link"))
-                )
-                next_button.click()
+                # next_button = WebDriverWait(driver, 2).until(
+                #     # EC.element_to_be_clickable((By.CSS_SELECTOR, "li.page-item.next a.page-link"))
+                #     EC.element_to_be_clickable((By.CSS_SELECTOR, "li.page-item"))
+                # )
+                # next_button.click()
+                all_items = driver.find_elements(By.CSS_SELECTOR, "ul.pagination li.page-item")
+                last = all_items[-1]
+                next_link = last.find_element(By.TAG_NAME, "a")
+                next_link.click()
+
                 print("Passage à la page suivante...")
                 count += 1
             except Exception as e:
