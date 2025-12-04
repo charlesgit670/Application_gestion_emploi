@@ -49,14 +49,19 @@ class ServicePublic(JobFinder):
         for i in range(last_page):
             res = self.get_content(url + f"page/{i+1}")
             soup = BeautifulSoup(res.text, 'html.parser')
-            offers = soup.select("div.fr-col-12.item")
-            for offer in offers:
+            # offers = soup.select("div.fr-col-12.item")
+            offers = soup.select("li.fr-col-12.item")
+            for num, offer in enumerate(offers):
                 job_link = offer.select_one("a.is-same-domain")["href"]
                 job_title = offer.select_one("a.is-same-domain").get_text(strip=True)
-                job_ministere = offer.select_one("img.fr-responsive-img").get("alt")
+                try:
+                    job_ministere = offer.select_one("img.fr-responsive-img").get("alt")
+                except:
+                    job_ministere = offer.select_one("div.fr-responsive-img").get_text(strip=True)
                 job_datetime = self.parse_date(offer.select_one("li.fr-icon-calendar-line").get_text(strip=True))
 
                 all_jobs.append((job_title, job_ministere, job_link, job_datetime))
+
 
 
         # Récupérer le contenu de toutes les fiches de poste
