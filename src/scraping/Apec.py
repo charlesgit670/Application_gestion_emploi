@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime as dt, timedelta
 # from tqdm import tqdm
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -24,7 +25,7 @@ class Apec(JobFinder):
         self.url = re.sub(r'motsCles=[^&]*', 'motsCles={}', config['url']['apec'])
 
     def build_keywords(self):
-        joined_keywords = " OR ".join(self.keywords)
+        joined_keywords = " OR ".join([f'"{kw}"' for kw in self.keywords])
         return urllib.parse.quote(joined_keywords)
 
 
@@ -67,7 +68,11 @@ class Apec(JobFinder):
                 company_name = offer.find_element(By.CSS_SELECTOR, "p.card-offer__company").text
                 datetime = offer.find_element(By.XPATH, ".//li[@title='Date de publication']").text
 
-                if job_title and company_name and job_link:
+                # on filtre les offres trop ancienne
+                date_limit = dt.now() - timedelta(days=7)
+                job_datetime_obj = dt.strptime(datetime, "%d/%m/%Y")
+
+                if job_title and company_name and job_link and job_datetime_obj >= date_limit:
                     all_jobs.append((job_title, company_name, job_link, datetime))
 
             # Vérifier si un bouton "Page suivante" est actif

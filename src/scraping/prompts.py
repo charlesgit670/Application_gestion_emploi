@@ -1,35 +1,45 @@
 instruction_scoring = """
-        Je suis a la recherche d'un CDI en tant que data scientist :
-        Ce que je veux :
-        - Forte part de création de modèle de machine learning et modèle statistique
-        - Analyser et comprendre le résultat des modèles
-        - Préférence pour le secteur industriel comme l'énergie, l'écologie
-        - Utilisation du langage Python
+Tu es un assistant spécialisé dans l’analyse d’offres d’emploi. 
+Ton objectif est d’évaluer si une offre correspond **exactement** à ma recherche d’un CDI en Data Science avec **implémentation technique réelle de modèles ML/statistiques**.
 
-        Ce que je tolère :
-        - Préparation des données
-        - Industrialisation de modèles
-        - Présentation des résultats
+Ce que je recherche absolument :
+- CDI
+- Poste technique : Data Scientist, Machine Learning Engineer, AI Engineer, etc.
+- Développement et implémentation **réelle et autonome** de modèles de machine learning et statistiques (ex : régression linéaire, détection d’anomalies, clustering, réseaux de neurones, etc.)
+- Analyse et interprétation des résultats des modèles
+- Secteur à fort impact comme l'industriel (ex : énergie, écologie)
+- Utilisation de Python pour le développement des modèles
 
-        Ce que je ne veux pas :
-        - Stage et alternance
-        - Un poste qui ressemble plus à data analyste ou data engineer
-        - Les secteurs bancaire, assurance, retails etc.
 
-        Ceux sont des préférences donc ne soit pas trop exigeant
+Ce que tu tolères mais **ne compte jamais pour un score ≥50** :
+- Intégration, utilisation ou déploiement de services ML/IA existants (Azure AI, APIs LLM, etc.)
+- Préparation et nettoyage des données
+- Industrialisation ou mise en production de modèles
+- Présentation ou reporting des résultats
+- Veille technologique ou proposition d’innovations
+- Développement d’interface simple type Streamlit
+- Connaissance conceptuelle de l’IA/ML sans implémentation technique directe
 
-        Est-ce que l'offre ci-dessus pourrait correspondre à mes attentes ?
-        Répond en donnant un score d'interet pour l'offre entre 0 et 100 :
-        - moins de 50 si l'offre contient très peu de tache lié au machine learning 
-        - supérieur à 50 si une forte part de machine learning 
-        et justifie ton choix en énumérant tes arguments en quelques mots tout ça au format json suivant:
-        {
-        "reponse": "score",
-        "justification": "Ta justification"
-        }
 
-        Offres : 
-        """
+Ce que tu dois absolument éliminer (score <50) :
+- Stage, alternance ou apprentissage
+- Poste orienté Data Analyst ou Data Engineer
+- Product Owner, gestion de projet, chef de projet, management sans implémentation technique
+- Secteurs non industriels ou hors impact énergétique/écologique (ex : banque, assurance, retail, e-commerce, consulting, santé, pharmaceutique)
+- Développement front-end (React, Angular, HTML, CSS, JavaScript, TypeScript)
+
+Pour chaque offre, réponds avec un score d’intérêt entre 0 et 100 :
+- 0 à 49 : l’offre **ne demande pas d’implémentation technique réelle** de modèles ML/statistiques à partir de zéro
+- 50 à 100 : l’offre **demande réellement de développer et implémenter** des modèles ML/statistiques à partir de zéro
+
+Format de réponse (obligatoire, JSON strict) :
+{
+  "reponse": SCORE_ENTIER,
+  "justification": "Arguments courts séparés par des points-virgules"
+}
+
+Offres :
+"""
 
 instruction_custom_profile = """
 Répond par un paragraphe qui est une amélioration de la partie sur l'Objectif professionnel afin qu'elle corresponde

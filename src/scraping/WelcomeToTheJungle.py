@@ -4,7 +4,7 @@ import time
 # import os
 import json
 import re
-from datetime import datetime as dt, timezone
+from datetime import datetime as dt, timezone, timedelta
 # from dotenv import load_dotenv
 from selenium.common import TimeoutException
 from selenium.webdriver.common.by import By
@@ -15,7 +15,6 @@ import urllib.parse
 
 from scraping.JobFinder import JobFinder
 from scraping.utils import measure_time, create_driver
-
 
 
 class WelcomeToTheJungle(JobFinder):
@@ -34,7 +33,7 @@ class WelcomeToTheJungle(JobFinder):
         list_url = []
         for k in self.keywords:
             keyword = urllib.parse.quote(k)
-            list_url.append(self.url.format(keyword))
+            list_url.append(self.url.format(f'"{keyword}"'))
         return list_url
 
     # def __login(self, driver):
@@ -125,12 +124,17 @@ class WelcomeToTheJungle(JobFinder):
 
                     # gestion de la date ou du bouton "Sponsorisé"
                     try:
-                        datetime = card.find_element(By.TAG_NAME, "time").get_attribute("datetime")
+                        datetime_str = card.find_element(By.TAG_NAME, "time").get_attribute("datetime")
                     except NoSuchElementException:
-                        datetime = dt.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        datetime_str = dt.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-                    if title and link and company and datetime:
-                        all_jobs.append((title, company, link, datetime))
+                    # Conversion de la date du job (ISO 8601 → datetime)
+                    job_date = dt.fromisoformat(datetime_str.replace("Z", "+00:00"))
+                    # Date limite = aujourd’hui - 7 jours
+                    date_limit = dt.now(timezone.utc) - timedelta(days=7)
+
+                    if title and link and company and job_date >= date_limit:
+                        all_jobs.append((title, company, link, datetime_str))
 
 
                 # Vérifier si un bouton "Page suivante" est actif

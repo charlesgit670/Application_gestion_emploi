@@ -4,6 +4,7 @@ import json
 import re
 import math
 import time
+from datetime import datetime as dt, timedelta
 import random
 from bs4 import BeautifulSoup
 import backoff
@@ -54,10 +55,16 @@ class Linkedin(JobFinder):
                 jobid = jobid.get('data-entity-urn').split(":")[3]
                 joblink = job_on_this_page.find("a")["href"]
                 jobDateTime = job_on_this_page.find("time")["datetime"]
-                if jobid not in all_job_id:
-                    all_job_id.append(jobid)
-                    all_job_link.append(joblink)
-                    all_job_datetime.append(jobDateTime)
+
+                # on filtre les offres trop ancienne
+                date_limit = dt.now() - timedelta(days=7)
+                job_datetime_obj = dt.fromisoformat(jobDateTime)
+
+                if job_datetime_obj >= date_limit:
+                    if jobid not in all_job_id:
+                        all_job_id.append(jobid)
+                        all_job_link.append(joblink)
+                        all_job_datetime.append(jobDateTime)
         print(f"Nombre de fiche de poste Linkedin récupéré {len(all_job_id)}")
 
         # Récupérer le contenu de toutes les fiches de poste
@@ -104,7 +111,7 @@ class Linkedin(JobFinder):
 
 
     def build_keywords(self):
-        joined_keywords = " OR ".join(self.keywords)
+        joined_keywords = " OR ".join([f'"{kw}"' for kw in self.keywords])
         return urllib.parse.quote(joined_keywords)
 
 
