@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from datetime import datetime
 
-from application.all_pages_app import scrapping_page, new_offer_page, offer_gpt_filter_page, offer_readed_page, offer_applied_page, offer_refused_page
+from application.all_pages_app import scrapping_page, new_offer_page, offer_gpt_filter_page, offer_readed_page, offer_applied_page, offer_refused_page, load_config
 
 # Charger ou initialiser le dataframe
 DATA_FILE = "data/job.csv"
@@ -15,7 +15,6 @@ def load_data():
 
         today = pd.Timestamp(datetime.utcnow().date())
         df["days_diff"] = (today - df["date"]).dt.days
-
         return df
     else:
         return pd.DataFrame(columns=["title", "content", "company", "link", "date", "is_read", "is_apply", "is_refused", "is_good_offer", "comment", "score", "custom_profile", "days_diff"])

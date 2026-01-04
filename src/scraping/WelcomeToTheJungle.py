@@ -28,6 +28,7 @@ class WelcomeToTheJungle(JobFinder):
             config = json.load(f)
         self.keywords = config['keywords']
         self.url = re.sub(r'query=[^&]*', 'query={}', config['url']['wttj'])
+        self.filter_day_scrap = int(config["filter_day_scrap"])
 
     def build_urls(self):
         list_url = []
@@ -131,7 +132,7 @@ class WelcomeToTheJungle(JobFinder):
                     # Conversion de la date du job (ISO 8601 → datetime)
                     job_date = dt.fromisoformat(datetime_str.replace("Z", "+00:00"))
                     # Date limite = aujourd’hui - 7 jours
-                    date_limit = dt.now(timezone.utc) - timedelta(days=7)
+                    date_limit = dt.now(timezone.utc) - timedelta(days=self.filter_day_scrap)
 
                     if title and link and company and job_date >= date_limit:
                         all_jobs.append((title, company, link, datetime_str))

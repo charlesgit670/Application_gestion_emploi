@@ -5,10 +5,11 @@
 Cette application permet de **scraper automatiquement plusieurs sites d'emploi** et de **gérer le suivi des offres récupérées**.  
 Elle propose également un **filtrage intelligent des offres via un LLM** (modèle de langage) grâce à un prompt adapté.  
 
-Actuellement, trois plateformes sont supportées :  
+Actuellement, les plateformes sont supportées :  
 - **LinkedIn**  
 - **Welcome to the Jungle**  
 - **Apec**
+- **Service Public**
 
 ---
 
@@ -54,7 +55,8 @@ Sur la page **Mettre à jour les offres** :
 - **Mots-clés** : un mot-clé par ligne.  
 - **URLs des sites** : collez l’URL de recherche issue des jobboards après avoir configuré les filtres comme la localisation (des exemples sont fournis).  
 - **Jobboards à scrapper** : cochez les plateformes souhaitées.  
-- **Options générales** :  
+- **Options générales** :
+  - Un filtre pour récupérer que les offres les plus récentes (en nombre de jours).
   - Scraping en parallèle (à relancer si certains scrapers échouent).  
   - Activation du LLM.  
 - **Paramètres du LLM** :  

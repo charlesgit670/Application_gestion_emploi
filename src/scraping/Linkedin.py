@@ -29,6 +29,7 @@ class Linkedin(JobFinder):
         self.keywords = config['keywords']
         self.url = re.sub(r'keywords=[^&]*', 'keywords={}', config['url']['linkedin'])
         self.job_id_api = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" + self.url.split("search?")[1] + "&start={}"
+        self.filter_day_scrap = int(config["filter_day_scrap"])
 
     @measure_time
     def getJob(self, update_callback=None):
@@ -57,7 +58,7 @@ class Linkedin(JobFinder):
                 jobDateTime = job_on_this_page.find("time")["datetime"]
 
                 # on filtre les offres trop ancienne
-                date_limit = dt.now() - timedelta(days=7)
+                date_limit = dt.now() - timedelta(days=self.filter_day_scrap)
                 job_datetime_obj = dt.fromisoformat(jobDateTime)
 
                 if job_datetime_obj >= date_limit:

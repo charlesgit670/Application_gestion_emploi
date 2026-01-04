@@ -18,6 +18,7 @@ class ServicePublic(JobFinder):
             config = json.load(f)
         self.keywords = config['keywords']
         self.url = re.sub(r'mot-cles/[^/]*', 'mot-cles/{}', config['url']['sp'])
+        self.filter_day_scrap = int(config["filter_day_scrap"])
 
     def build_keywords(self):
         joined_keywords = " ".join(self.keywords)

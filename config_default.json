@@ -15,6 +15,7 @@
     "linkedin": true,
     "sp": true
   },
+  "filter_day_scrap": 7,
   "use_multithreading": true,
   "use_llm": true,
   "llm": {

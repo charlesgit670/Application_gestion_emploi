@@ -7,6 +7,9 @@ import os
 
 from main import update_store_data
 
+# 🔄 Chemin du fichier de config
+CONFIG_FILE = "config.json"
+DEFAULT_CONFIG_FILE = "config_default.json"
 
 def save_data(df, data_file="data/job.csv"):
     df.to_csv(data_file, sep=";", index=False, encoding="utf-8")
@@ -16,45 +19,41 @@ def get_color(score):
     g = int(score * 2.55)
     return f"rgb({r},{g},0)"
 
-def configuration_page():
-    # 🔄 Chemin du fichier de config
-    CONFIG_FILE = "config.json"
-    DEFAULT_CONFIG_FILE = "config_default.json"
-
-    # 🧩 Charger la configuration actuelle
-    def load_config():
-        if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        else:
-            return {
-                "keywords": [],
-                "url": {
-                    "wttj": "",
-                    "apec": "",
-                    "linkedin": "",
-                    "sp": ""
-                },
-                "launch_scrap": {
-                    "wttj": False,
-                    "apec": False,
-                    "linkedin": False,
-                    "sp": False
-                },
-                "use_multithreading": False,
-                "use_llm": False,
-                "llm": {
-                    "provider": "Local",
-                    "gpt_api_key": "",
-                    "mistral_api_key": "",
-                    "generate_score": False,
-                    "prompt_score": "",
-                    "generate_custom_profile": False,
-                    "prompt_custom_profile": "",
-                    "cv": ""
-                }
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        return {
+            "keywords": [],
+            "url": {
+                "wttj": "",
+                "apec": "",
+                "linkedin": "",
+                "sp": ""
+            },
+            "launch_scrap": {
+                "wttj": False,
+                "apec": False,
+                "linkedin": False,
+                "sp": False
+            },
+            "filter_day_scrap": 7,
+            "use_multithreading": False,
+            "use_llm": False,
+            "llm": {
+                "provider": "Local",
+                "gpt_api_key": "",
+                "mistral_api_key": "",
+                "generate_score": False,
+                "prompt_score": "",
+                "generate_custom_profile": False,
+                "prompt_custom_profile": "",
+                "cv": ""
             }
+        }
 
+def configuration_page():
     # 💾 Sauvegarder la configuration
     def save_config(config):
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -96,6 +95,7 @@ def configuration_page():
 
     # ⚙️ Options générales
     st.header("⚙️ Options générales")
+    config["filter_day_scrap"] = st.number_input("Indiquer en jours l'ancienneté maximale des offres scrapées", value=config["filter_day_scrap"])
     config["use_multithreading"] = st.checkbox(
         "Utiliser le multithreading (permet de scrapper plusieurs sites en même temps mais demande plus de ressource)",
         config["use_multithreading"])

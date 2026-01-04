@@ -23,6 +23,7 @@ class Apec(JobFinder):
             config = json.load(f)
         self.keywords = config['keywords']
         self.url = re.sub(r'motsCles=[^&]*', 'motsCles={}', config['url']['apec'])
+        self.filter_day_scrap = int(config["filter_day_scrap"])
 
     def build_keywords(self):
         joined_keywords = " OR ".join([f'"{kw}"' for kw in self.keywords])
@@ -69,7 +70,7 @@ class Apec(JobFinder):
                 datetime = offer.find_element(By.XPATH, ".//li[@title='Date de publication']").text
 
                 # on filtre les offres trop ancienne
-                date_limit = dt.now() - timedelta(days=7)
+                date_limit = dt.now() - timedelta(days=self.filter_day_scrap)
                 job_datetime_obj = dt.strptime(datetime, "%d/%m/%Y")
 
                 if job_title and company_name and job_link and job_datetime_obj >= date_limit:
