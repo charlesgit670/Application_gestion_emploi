@@ -10,6 +10,8 @@ from mistralai import Mistral
 from tqdm import tqdm
 from enum import Enum
 
+from scraping.FranceTravail import FranceTravail
+from scraping.HelloWork import HelloWork
 from scraping.WelcomeToTheJungle import WelcomeToTheJungle
 from scraping.Apec import Apec
 from scraping.Linkedin import Linkedin
@@ -23,6 +25,8 @@ class Platform(Enum):
     apec = Apec
     linkedin = Linkedin
     sp = ServicePublic
+    hw = HelloWork
+    ft = FranceTravail
 
 def get_all_job(progress_dict, all_platforms, is_multiproc):
 
@@ -160,6 +164,8 @@ if __name__ == "__main__":
         "Linkedin": (0, 1),
         "Apec": (0, 1),
         "ServicePublic": (0, 1),
+        "HelloWork": (0, 1),
+        "FranceTravail": (0, 1),
         "Traitement des nouvelles offres (LLM)": (0, 1)
     }
     update_store_data(progress_dict)

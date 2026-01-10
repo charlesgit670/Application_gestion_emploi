@@ -21,7 +21,7 @@ class JobFinder:
             "comment": "",
             "score": -1,
             "custom_profile": "",
-            "hash": [generate_hash(plateforme + title + company + content + str(datetime)) for title, content, company, datetime in zip(list_title, list_content, list_company, list_datetime)]
+            "hash": [generate_hash(plateforme + title + company + content) for title, content, company, datetime in zip(list_title, list_content, list_company, list_datetime)]
         }
         df = pd.DataFrame(data=data)
         if plateforme == "apec":

@@ -10,6 +10,8 @@ Actuellement, les plateformes sont supportées :
 - **Welcome to the Jungle**  
 - **Apec**
 - **Service Public**
+- **HelloWork**
+- **France Travail**
 
 ---
 
@@ -17,7 +19,7 @@ Actuellement, les plateformes sont supportées :
 
 1. **Récupération** des offres depuis les sites d'emploi.  
 2. **Détection des nouvelles offres** en évitant les doublons :  
-   - Création d’un **hash unique** pour chaque offre (Plateforme + Titre + Entreprise + Description + Date de publication).  
+   - Création d’un **hash unique** pour chaque offre (Plateforme + Titre + Entreprise + Description).  
    - Suppression des doublons.  
    - Comparaison avec la base existante pour ne garder que les nouvelles offres.  
 3. **Sauvegarde** des nouvelles offres.  
@@ -56,7 +58,7 @@ Sur la page **Mettre à jour les offres** :
 - **URLs des sites** : collez l’URL de recherche issue des jobboards après avoir configuré les filtres comme la localisation (des exemples sont fournis).  
 - **Jobboards à scrapper** : cochez les plateformes souhaitées.  
 - **Options générales** :
-  - Un filtre pour récupérer que les offres les plus récentes (en nombre de jours).
+  - Un filtre pour récupérer que les offres les plus récentes (en nombre de jours) sauf pour le Service Public.
   - Scraping en parallèle (à relancer si certains scrapers échouent).  
   - Activation du LLM.  
 - **Paramètres du LLM** :  

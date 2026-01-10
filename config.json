@@ -9,13 +9,17 @@
     "wttj": "https://www.welcometothejungle.com/fr/jobs?refinementList%5Bcontract_type%5D%5B%5D=full_time&refinementList%5Bsectors.parent_reference%5D%5B%5D=industry-1&refinementList%5Bsectors.parent_reference%5D%5B%5D=public-administration-1&refinementList%5Bsectors.reference%5D%5B%5D=artificial-intelligence-machine-learning&refinementList%5Bsectors.reference%5D%5B%5D=big-data-1&refinementList%5Bsectors.reference%5D%5B%5D=cyber-security&refinementList%5Blanguage%5D%5B%5D=fr&refinementList%5Boffices.country_code%5D%5B%5D=FR&query=Data%20Scientist&page=1&aroundQuery=Nanterre%2C%20France&searchTitle=false&aroundLatLng=48.88822%2C2.19428&aroundRadius=20",
     "apec": "https://www.apec.fr/candidat/recherche-emploi.html/emploi?motsCles=Data%20Scientist&lieux=596212&typesConvention=143684&typesConvention=143685&typesConvention=143686&typesConvention=143687&typesContrat=101888&page=0&distance=15",
     "linkedin": "https://www.linkedin.com/jobs/search?keywords=%22Data%20Scientist%22%20OR%20%22machine%20Learning%22&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=10&f_JT=F%2CC&f_TPR=r604800&f_E=2%2C3%2C4&position=1&pageNum=0",
-    "sp": "https://choisirleservicepublic.gouv.fr/nos-offres/filtres/mot-cles/data%20scientist/localisation/283-284-289/domaine/3522/date-de-publication/14_derniers_jours/"
+    "sp": "https://choisirleservicepublic.gouv.fr/nos-offres/filtres/mot-cles/data%20scientist/localisation/283-284-289/domaine/3522/date-de-publication/14_derniers_jours/",
+    "hw": "https://www.hellowork.com/fr-fr/emploi/recherche.html?k=Data+scientist&k_autocomplete=http%3A%2F%2Fwww.rj.com%2FCommun%2FPost%2FData_scientist&l=Nanterre+92000&l_autocomplete=&st=relevance&c=CDI&ray=20&d=w",
+    "ft": "https://candidat.francetravail.fr/offres/recherche?emission=7&lieux=92050&motsCles=data+scientist&offresPartenaires=true&range=0-19&rayon=20&tri=0&typeContrat=CDI"
   },
   "launch_scrap": {
     "wttj": true,
     "apec": true,
     "linkedin": true,
-    "sp": true
+    "sp": true,
+    "hw": true,
+    "ft": true
   },
   "filter_day_scrap": 7,
   "use_multithreading": true,
