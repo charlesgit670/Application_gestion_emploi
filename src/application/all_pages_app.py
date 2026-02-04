@@ -41,6 +41,11 @@ def load_config():
                 "ft": False
             },
             "filter_day_scrap": 7,
+            "language_filter": {
+                "fr": True,
+                "en":  False,
+                "autre": False
+            },
             "use_multithreading": False,
             "use_llm": False,
             "llm": {
@@ -102,6 +107,15 @@ def configuration_page():
     # ⚙️ Options générales
     st.header("⚙️ Options générales")
     config["filter_day_scrap"] = st.number_input("Indiquer en jours l'ancienneté maximale des offres scrapées", value=config["filter_day_scrap"])
+
+    default_selected = [k for k, v in config["language_filter"].items() if v]
+    selected = st.multiselect(
+        "Langues",
+        config["language_filter"].keys(),
+        default=default_selected
+    )
+    config["language_filter"] = {k: k in selected for k in config["language_filter"].keys()}
+
     config["use_multithreading"] = st.checkbox(
         "Utiliser le multithreading (permet de scrapper plusieurs sites en même temps mais demande plus de ressource)",
         config["use_multithreading"])

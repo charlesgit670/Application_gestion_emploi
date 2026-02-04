@@ -16,7 +16,7 @@ from scraping.WelcomeToTheJungle import WelcomeToTheJungle
 from scraping.Apec import Apec
 from scraping.Linkedin import Linkedin
 from scraping.ServicePublic import ServicePublic
-from scraping.utils import measure_time, add_LLM_comment
+from scraping.utils import measure_time, add_LLM_comment, is_language_allowed
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -90,7 +90,7 @@ def get_store_data():
 #     similarity = fuzz.ratio(content1, content2)
 #     return similarity >= threshold
 
-def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config):
+def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, language_filter):
     """Ajoute les nouvelles entrées du new_df à stored_df en vérifiant l'unicité sur 'link' et la similarité sur 'content'."""
 
     # Load client LLM
@@ -115,10 +115,11 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config):
     for _, new_row in new_df.iterrows():
         if not new_row['hash'] in stored_df['hash'].values:
             if not new_row['link'] in stored_df['link'].values:
+                if all(language_filter.values()) or is_language_allowed(language_filter, new_row['content']):
         # if not stored_df['link'].str.contains(new_row['link'], na=False).any():
             # Vérifier si le contenu est trop similaire à un contenu existant
             # if not any(is_similar(new_row['content'], existing_content) for existing_content in stored_df['content']):
-                new_rows.append(new_row)
+                    new_rows.append(new_row)
 
     for i, new_row in tqdm(enumerate(new_rows), total=len(new_rows), desc="Traitement des offres récupérées"):
         if use_llm:
@@ -149,7 +150,7 @@ def update_store_data(progress_dict):
 
         new_df = get_all_job(progress_dict, active_platforms, config["use_multithreading"])
         store_df = get_store_data()
-        merged_df = merge_dataframes(progress_dict, store_df, new_df, config["use_llm"], config["llm"])
+        merged_df = merge_dataframes(progress_dict, store_df, new_df, config["use_llm"], config["llm"], config["language_filter"])
         save_data(merged_df)
 
         return True

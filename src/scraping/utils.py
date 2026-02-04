@@ -9,6 +9,7 @@ from selenium.webdriver.chrome.options import Options
 import backoff
 from ollama import generate
 from pydantic import BaseModel
+from langdetect import detect
 
 # from scraping.prompts import my_resume, instruction_custom_profile, instruction_scoring
 
@@ -157,4 +158,12 @@ def add_custom_cv_profile(client_LLM, llm_config, row):
         output_text = chat_response.choices[0].message.content
 
     return output_text
+
+
+def is_language_allowed(languages_config, content):
+    langue = detect(content)
+    if langue in languages_config:
+        return languages_config[langue]
+    return languages_config.get("autre", False)
+
 

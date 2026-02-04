@@ -20,6 +20,11 @@
     "ft": true
   },
   "filter_day_scrap": 7,
+  "language_filter": {
+    "fr": true,
+    "en":  false,
+    "autre": false
+  },
   "use_multithreading": true,
   "use_llm": true,
   "llm": {
