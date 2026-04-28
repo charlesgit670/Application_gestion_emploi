@@ -10,7 +10,8 @@ from selenium.webdriver.chrome.options import Options
 import backoff
 from ollama import generate
 from pydantic import BaseModel
-from langdetect import detect, LangDetectException
+from langdetect import detect
+from langdetect.lang_detect_exception import LangDetectException
 
 # from scraping.prompts import my_resume, instruction_custom_profile, instruction_scoring
 
