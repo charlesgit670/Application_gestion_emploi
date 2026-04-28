@@ -173,6 +173,14 @@ def update_store_data(progress_dict):
         active_platforms = [Platform[key].value for key, active in config["launch_scrap"].items() if active]
 
         new_df = get_all_job(progress_dict, active_platforms, config["use_multithreading"])
+
+        # Si tous les scrapers ont échoué, on ne touche pas au CSV existant :
+        # écraser data/job.csv avec un DataFrame sans colonnes casserait app.py
+        # (qui s'attend à trouver les colonnes date, title, etc.).
+        if new_df.empty:
+            print("Aucune offre collectée (tous les scrapers ont échoué), sauvegarde annulée.")
+            return True
+
         store_df = get_store_data()
         # .get() avec valeur par défaut : rétrocompatibilité avec les anciens
         # config.json qui ne contiennent pas encore la clé "language_filter".
