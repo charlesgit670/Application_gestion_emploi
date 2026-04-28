@@ -93,7 +93,7 @@ class Apec(JobFinder):
 
                     print("Passage à la page suivante...")
                     count += 1
-                except Exception as e:
+                except Exception:
                     print("Fin de pagination")
                     break
 
