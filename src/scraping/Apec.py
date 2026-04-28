@@ -39,91 +39,88 @@ class Apec(JobFinder):
         # Stocker tous les jobs trouvés
         all_jobs = []
         count = 1
-        while True:
-            print(f"Page {count}")
-
-            # Fermer la bannière de cookies si elle est présente
-            try:
-                cookie_banner = WebDriverWait(driver, 2).until(
-                    EC.element_to_be_clickable((By.ID, "onetrust-reject-all-handler"))  # Refuser tous les cookies
-                )
-                # Permet de gérer les problemes en mode headless de bouton non cliquable
-                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", cookie_banner)
-                cookie_banner = WebDriverWait(driver, 2).until(
-                    EC.element_to_be_clickable((By.ID, "onetrust-reject-all-handler"))  # Refuser tous les cookies
-                )
-                cookie_banner.click()
-                print("Bannière de cookies fermée (refusé tous les cookies).")
-            except Exception as e:
-                print(e)
-                print("Aucune bannière de cookies détectée.")
-
-            # Attendre que l'élément contenant l'offre soit présent
-            offer_element = WebDriverWait(driver, 3).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a[queryparamshandling='merge']"))
-            )
-
-            for offer in offer_element:
-                job_link = offer.get_attribute("href")
-                job_title = offer.find_element(By.CSS_SELECTOR, "h2.card-title").text
-                company_name = offer.find_element(By.CSS_SELECTOR, "p.card-offer__company").text
-                datetime = offer.find_element(By.XPATH, ".//li[@title='Date de publication']").text
-
-                # on filtre les offres trop ancienne
-                date_limit = dt.now() - timedelta(days=self.filter_day_scrap)
-                job_datetime_obj = dt.strptime(datetime, "%d/%m/%Y")
-
-                if job_title and company_name and job_link and job_datetime_obj >= date_limit:
-                    all_jobs.append((job_title, company_name, job_link, datetime))
-
-            # Vérifier si un bouton "Page suivante" est actif
-            try:
-                # next_button = WebDriverWait(driver, 2).until(
-                #     # EC.element_to_be_clickable((By.CSS_SELECTOR, "li.page-item.next a.page-link"))
-                #     EC.element_to_be_clickable((By.CSS_SELECTOR, "li.page-item"))
-                # )
-                # next_button.click()
-                all_items = driver.find_elements(By.CSS_SELECTOR, "ul.pagination li.page-item")
-                last = all_items[-1]
-                next_link = last.find_element(By.TAG_NAME, "a")
-                next_link.click()
-
-                print("Passage à la page suivante...")
-                count += 1
-            except Exception as e:
-                print("Fin de pagination")
-                # print(e)
-                break
-
-        # Récupérer le contenu de toutes les fiches de poste
-        print(f"Nombre de fiche de poste APEC récupéré {len(all_jobs)}")
         list_title = []
         list_content = []
         list_company = []
         list_link = []
         list_datetime = []
-        total = len(all_jobs)
-        for i, (title, comp, link, datetime) in enumerate(all_jobs):
-        # for title, comp, link, datetime in tqdm(all_jobs):
-            driver.get(link)
 
-            job_description_element = WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.XPATH, "//div[@class='col-lg-8 border-L']"))
-            )
+        try:
+            while True:
+                print(f"Page {count}")
 
-            job_description = job_description_element.text
+                # Fermer la bannière de cookies si elle est présente
+                try:
+                    cookie_banner = WebDriverWait(driver, 2).until(
+                        EC.element_to_be_clickable((By.ID, "onetrust-reject-all-handler"))  # Refuser tous les cookies
+                    )
+                    # Permet de gérer les problemes en mode headless de bouton non cliquable
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", cookie_banner)
+                    cookie_banner = WebDriverWait(driver, 2).until(
+                        EC.element_to_be_clickable((By.ID, "onetrust-reject-all-handler"))  # Refuser tous les cookies
+                    )
+                    cookie_banner.click()
+                    print("Bannière de cookies fermée (refusé tous les cookies).")
+                except Exception:
+                    # On n'affiche pas l'exception : le stacktrace natif de chromedriver
+                    # (séquences d'adresses mémoire) polluerait inutilement les logs.
+                    print("Aucune bannière de cookies détectée.")
 
-            list_title.append(title)
-            list_content.append(job_description)
-            list_company.append(comp)
-            list_link.append(link)
-            list_datetime.append(datetime)
+                # Attendre que l'élément contenant l'offre soit présent
+                offer_element = WebDriverWait(driver, 3).until(
+                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a[queryparamshandling='merge']"))
+                )
 
-            print(f"APEC {i}/{total}")
-            if update_callback:
-                update_callback(i + 1, total)
+                for offer in offer_element:
+                    job_link = offer.get_attribute("href")
+                    job_title = offer.find_element(By.CSS_SELECTOR, "h2.card-title").text
+                    company_name = offer.find_element(By.CSS_SELECTOR, "p.card-offer__company").text
+                    datetime = offer.find_element(By.XPATH, ".//li[@title='Date de publication']").text
 
-        driver.quit()
+                    # on filtre les offres trop ancienne
+                    date_limit = dt.now() - timedelta(days=self.filter_day_scrap)
+                    job_datetime_obj = dt.strptime(datetime, "%d/%m/%Y")
+
+                    if job_title and company_name and job_link and job_datetime_obj >= date_limit:
+                        all_jobs.append((job_title, company_name, job_link, datetime))
+
+                # Vérifier si un bouton "Page suivante" est actif
+                try:
+                    all_items = driver.find_elements(By.CSS_SELECTOR, "ul.pagination li.page-item")
+                    last = all_items[-1]
+                    next_link = last.find_element(By.TAG_NAME, "a")
+                    next_link.click()
+
+                    print("Passage à la page suivante...")
+                    count += 1
+                except Exception as e:
+                    print("Fin de pagination")
+                    break
+
+            # Récupérer le contenu de toutes les fiches de poste
+            print(f"Nombre de fiche de poste APEC récupéré {len(all_jobs)}")
+            total = len(all_jobs)
+            for i, (title, comp, link, datetime) in enumerate(all_jobs):
+                driver.get(link)
+
+                job_description_element = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, "//div[@class='col-lg-8 border-L']"))
+                )
+
+                job_description = job_description_element.text
+
+                list_title.append(title)
+                list_content.append(job_description)
+                list_company.append(comp)
+                list_link.append(link)
+                list_datetime.append(datetime)
+
+                print(f"APEC {i}/{total}")
+                if update_callback:
+                    update_callback(i + 1, total)
+
+        finally:
+            driver.quit()
 
         df = self.formatData("apec", list_title, list_content, list_company, list_link, list_datetime)
         df = df.drop_duplicates(subset="hash", keep="first")

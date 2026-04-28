@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from application.all_pages_app import scrapping_page, new_offer_page, offer_gpt_filter_page, offer_readed_page, offer_applied_page, offer_refused_page, load_config
 
@@ -13,7 +13,7 @@ def load_data():
         df = pd.read_csv(DATA_FILE, sep=";", encoding="utf-8")
         df["date"] = pd.to_datetime(df["date"])
 
-        today = pd.Timestamp(datetime.utcnow().date())
+        today = pd.Timestamp(datetime.now(timezone.utc).date())
         df["days_diff"] = (today - df["date"]).dt.days
         return df
     else:
