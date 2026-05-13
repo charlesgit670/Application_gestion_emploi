@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import json
+import time
 # from rapidfuzz import fuzz
 from datetime import datetime
 import shutil
@@ -17,7 +18,7 @@ from scraping.Apec import Apec
 from scraping.Linkedin import Linkedin
 from scraping.ServicePublic import ServicePublic
 from scraping.utils import measure_time, add_LLM_comment, is_language_allowed
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class Platform(Enum):
@@ -40,13 +41,28 @@ def get_all_job(progress_dict, all_platforms, is_multiproc):
         return platform.getJob(update_callback=update_callback)
 
     if is_multiproc:
+        results = []
         with ThreadPoolExecutor(max_workers=len(all_platforms)) as executor:
-            results = list(executor.map(run_source, all_platforms))
+            # submit + as_completed plutôt que executor.map() :
+            # avec map(), une exception dans un thread est re-levée et annule
+            # tous les résultats déjà collectés. Ici chaque scraper est isolé.
+            futures = {executor.submit(run_source, cls): cls for cls in all_platforms}
+            for future in as_completed(futures):
+                try:
+                    results.append(future.result())
+                except Exception as e:
+                    print(f"Erreur lors du scraping de {futures[future].__name__}: {e}")
     else:
         results = []
         for cls in all_platforms:
-            results.append(run_source(cls))
+            try:
+                results.append(run_source(cls))
+            except Exception as e:
+                print(f"Erreur lors du scraping de {cls.__name__}: {e}")
 
+    # Guard : si tous les scrapers ont échoué, pd.concat([]) lèverait une ValueError.
+    if not results:
+        return pd.DataFrame()
     return pd.concat(results)
 
 
@@ -111,10 +127,14 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, lang
 
     # Filtrer les nouvelles lignes qui n'existent pas déjà dans stored_df
     new_rows = []
+    # Conversion en set avant la boucle : le test `in` sur un set est O(1)
+    # contre O(n) sur un tableau numpy — évite une déduplication en O(n²).
+    stored_hashes = set(stored_df['hash'].values)
+    stored_links = set(stored_df['link'].values)
     # for _, new_row in tqdm(new_df.iterrows(), total=len(new_df), desc="Traitement des offres récupérées"):
     for _, new_row in new_df.iterrows():
-        if not new_row['hash'] in stored_df['hash'].values:
-            if not new_row['link'] in stored_df['link'].values:
+        if new_row['hash'] not in stored_hashes:
+            if new_row['link'] not in stored_links:
                 if all(language_filter.values()) or is_language_allowed(language_filter, new_row['content']):
         # if not stored_df['link'].str.contains(new_row['link'], na=False).any():
             # Vérifier si le contenu est trop similaire à un contenu existant
@@ -124,6 +144,10 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, lang
     for i, new_row in tqdm(enumerate(new_rows), total=len(new_rows), desc="Traitement des offres récupérées"):
         if use_llm:
             new_rows[i] = add_LLM_comment(client, llm_config, new_row)
+            # Pause proactive pour rester sous le seuil de rate limit du provider LLM.
+            # Le décorateur @backoff gère les 429 reçus, mais cette pause réduit
+            # la probabilité d'en recevoir un en premier lieu (~2 req/s max).
+            time.sleep(0.5)
         progress_dict["Traitement des nouvelles offres (LLM)"] = (i + 1, len(new_rows))
 
     if new_rows:
@@ -149,8 +173,18 @@ def update_store_data(progress_dict):
         active_platforms = [Platform[key].value for key, active in config["launch_scrap"].items() if active]
 
         new_df = get_all_job(progress_dict, active_platforms, config["use_multithreading"])
+
+        # Si tous les scrapers ont échoué, on ne touche pas au CSV existant :
+        # écraser data/job.csv avec un DataFrame sans colonnes casserait app.py
+        # (qui s'attend à trouver les colonnes date, title, etc.).
+        if new_df.empty:
+            print("Aucune offre collectée (tous les scrapers ont échoué), sauvegarde annulée.")
+            return True
+
         store_df = get_store_data()
-        merged_df = merge_dataframes(progress_dict, store_df, new_df, config["use_llm"], config["llm"], config["language_filter"])
+        # .get() avec valeur par défaut : rétrocompatibilité avec les anciens
+        # config.json qui ne contiennent pas encore la clé "language_filter".
+        merged_df = merge_dataframes(progress_dict, store_df, new_df, config["use_llm"], config["llm"], config.get("language_filter", {"fr": True, "en": True, "autre": True}))
         save_data(merged_df)
 
         return True

@@ -2,6 +2,7 @@ import time
 import re
 import json
 import functools
+import threading
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -10,6 +11,7 @@ import backoff
 from ollama import generate
 from pydantic import BaseModel
 from langdetect import detect
+from langdetect.lang_detect_exception import LangDetectException
 
 # from scraping.prompts import my_resume, instruction_custom_profile, instruction_scoring
 
@@ -36,8 +38,16 @@ def measure_time(func):
         return result
     return wrapper
 
+# Verrou + cache pour éviter la race condition ChromeDriverManager en multithreading
+_driver_path_lock = threading.Lock()
+_driver_path = None
+
 # Fonction pour créer un driver
 def create_driver():
+    global _driver_path
+    with _driver_path_lock:
+        if _driver_path is None:
+            _driver_path = ChromeDriverManager().install()
 
     options = Options()
     # options.add_argument("user-data-dir=C:\\Users\\charles\\AppData\\Local\\Google\\Chrome\\User Data")
@@ -47,10 +57,14 @@ def create_driver():
     options.add_argument("--no-sandbox")  # Utile dans certains environnements Linux
     options.add_argument("--disable-dev-shm-usage")  # Évite certains problèmes de mémoire
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    driver = webdriver.Chrome(service=Service(_driver_path), options=options)
     return driver
 
-@backoff.on_exception(backoff.expo, Exception)
+# max_tries=6 donne des délais cumulés de 1+2+4+8+16+32=63s, suffisant pour
+# laisser la fenêtre de rate limit se réinitialiser (généralement 60s).
+# jitter=None pour des délais déterministes : on évite de retenter trop tôt
+# de manière aléatoire, ce qui aggraverait un 429 déjà actif.
+@backoff.on_exception(backoff.expo, Exception, max_tries=6, jitter=None)
 def add_LLM_comment(client_LLM, llm_config, row):
     """
     Modifier l'instruction_scoring en fonction de ce que vous recherchez
@@ -161,7 +175,10 @@ def add_custom_cv_profile(client_LLM, llm_config, row):
 
 
 def is_language_allowed(languages_config, content):
-    langue = detect(content)
+    try:
+        langue = detect(content)
+    except LangDetectException:
+        return languages_config.get("autre", False)
     if langue in languages_config:
         return languages_config[langue]
     return languages_config.get("autre", False)
