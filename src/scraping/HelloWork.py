@@ -53,32 +53,40 @@ class HelloWork(JobFinder):
         urls = self.build_urls()
         all_jobs = []
         for url in urls:
-            # On récupère le nombre de page total à scrap
-            res = self.get_content(url)
-            soup = BeautifulSoup(res.text, 'html.parser')
             try:
-                pages = soup.select('nav[class*="tw-flex"] button[name="p"]')
-                page_numbers = [int(a.get_text(strip=True)) for a in pages if a.get_text(strip=True).isdigit()]
-                last_page = max(page_numbers)
-            except:
-                last_page = 1
-
-            # Stocker tous les jobs trouvés pour chaque page
-            for i in range(last_page):
-                res = self.get_content(url + f"&p={i + 1}")
+            # On récupère le nombre de page total à scrap
+                res = self.get_content(url)
                 soup = BeautifulSoup(res.text, 'html.parser')
-                offers = soup.find('ul', {'aria-label': 'liste des offres'}).find_all('li', recursive=False)
-                for num, offer in enumerate(offers):
-                    offer_content = offer.find('a', attrs={"data-cy": "offerTitle"})
-                    job_link = "https://www.hellowork.com" + offer_content.get('href', '')
-                    paragraphs = offer_content.find('h3').find_all('p')
-                    job_title = paragraphs[0].get_text(strip=True)
-                    job_company = paragraphs[1].get_text(strip=True) if len(paragraphs) > 1 else "Non spécifié"
-                    job_datetime = self.parse_date(offer.find('div', class_='tw-text-grey-500').get_text(strip=True))
+                try:
+                    # pages = soup.select('nav[class*="tw-flex"] button[name="p"]')
+                    # page_numbers = [int(a.get_text(strip=True)) for a in pages if a.get_text(strip=True).isdigit()]
+                    # last_page = max(page_numbers)
 
-                    date_limit = datetime.now() - timedelta(days=self.filter_day_scrap)
-                    if job_title and job_link and job_company and job_datetime >= date_limit:
-                        all_jobs.append((job_title, job_company, job_link, job_datetime))
+                    pages = soup.select('nav.sm\\:flex button[name="p"]')
+                    page_numbers = [int(btn.get_text(strip=True)) for btn in pages if btn.get_text(strip=True).isdigit()]
+                    last_page = max(page_numbers) if page_numbers else 1
+                except:
+                    last_page = 1
+
+                # Stocker tous les jobs trouvés pour chaque page
+                for i in range(last_page):
+                    res = self.get_content(url + f"&p={i + 1}")
+                    soup = BeautifulSoup(res.text, 'html.parser')
+                    offers = soup.find('ul', {'aria-label': 'liste des offres'}).find_all('li', recursive=False)
+                    for num, offer in enumerate(offers):
+                        offer_content = offer.find('a', attrs={"data-cy": "offerTitle"})
+                        job_link = "https://www.hellowork.com" + offer_content.get('href', '')
+                        paragraphs = offer_content.find('h3').find_all('p')
+                        job_title = paragraphs[0].get_text(strip=True)
+                        job_company = paragraphs[1].get_text(strip=True) if len(paragraphs) > 1 else "Non spécifié"
+                        job_datetime = self.parse_date(offer.find('div', class_='text-grey-500').get_text(strip=True))
+
+                        date_limit = datetime.now() - timedelta(days=self.filter_day_scrap)
+                        if job_title and job_link and job_company and job_datetime >= date_limit:
+                            all_jobs.append((job_title, job_company, job_link, job_datetime))
+            except:
+                print("Pas d'offres trouvés : ", url)
+
 
         # Elimination des doublons
         seen_links = set()

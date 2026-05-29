@@ -103,14 +103,18 @@ class WelcomeToTheJungle(JobFinder):
 
             count = 1
             while True:
-                print(f"Page {count}")
+                try:
+                    print(f"Page {count}")
 
-                self.__close_cookie_banner(driver)
+                    self.__close_cookie_banner(driver)
 
-                job_cards = WebDriverWait(driver, 5).until(
-                    EC.presence_of_all_elements_located(
-                        (By.XPATH, "//li[@data-testid='search-results-list-item-wrapper']"))
-                )
+                    job_cards = WebDriverWait(driver, 5).until(
+                        EC.presence_of_all_elements_located(
+                            (By.XPATH, "//li[@data-testid='search-results-list-item-wrapper']"))
+                    )
+                except:
+                    print("WTTF : Pas d'offres pour : ", url)
+                    break
 
                 for card in job_cards:
 

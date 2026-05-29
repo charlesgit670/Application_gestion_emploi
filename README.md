@@ -7,7 +7,7 @@ Elle propose également un **filtrage intelligent des offres via un LLM** (modè
 
 Actuellement, les plateformes sont supportées :  
 - **LinkedIn**  
-- **Welcome to the Jungle**  
+- **Welcome to the Jungle**  (Edit : Suite à des gros changements de la plateforme le scrapping n'est plus supporté)
 - **Apec**
 - **Service Public**
 - **HelloWork**

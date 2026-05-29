@@ -121,7 +121,7 @@ class FranceTravail(JobFinder):
                         print(f"Failed to scrap")
                         print(link)
 
-            print(f"HelloWork {i}/{total}")
+            print(f"France Travail {i}/{total}")
             if update_callback:
                 update_callback(i + 1, total)
 
