@@ -2,58 +2,53 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime, timezone
+# Import de la classe de validation des colonnes
+from JobColumns import JobColumns
 
-from application.all_pages_app import scrapping_page, new_offer_page, offer_gpt_filter_page, offer_readed_page, offer_applied_page, offer_refused_page, load_config
+st.set_page_config(
+    page_title="Job Tracker & Scraper",
+    page_icon="💼",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Charger ou initialiser le dataframe
 DATA_FILE = "data/job.csv"
 
-def load_data():
-    if os.path.exists(DATA_FILE):
-        df = pd.read_csv(DATA_FILE, sep=";", encoding="utf-8")
-        df["date"] = pd.to_datetime(df["date"])
+@st.cache_data(ttl=60)
+def load_data(file_path):
+    if os.path.exists(file_path):
+        try:
+            df = pd.read_csv(file_path, sep=";", encoding="utf-8")
+            df[JobColumns.DATE] = pd.to_datetime(df[JobColumns.DATE], errors="coerce")
 
-        today = pd.Timestamp(datetime.now(timezone.utc).date())
-        df["days_diff"] = (today - df["date"]).dt.days
-        return df
-    else:
-        return pd.DataFrame(columns=["title", "content", "company", "link", "date", "is_read", "is_apply", "is_refused", "is_good_offer", "comment", "score", "custom_profile", "days_diff"])
+            today = pd.Timestamp(datetime.now(timezone.utc).date())
+            df[JobColumns.DAYS_DIFF] = (today - df[JobColumns.DATE].dt.tz_localize(None)).dt.days
+            return df
+        except Exception as e:
+            st.error(f"Erreur lors de la lecture du fichier CSV : {e}")
 
+    # Initialisation robuste typée
+    return pd.DataFrame(columns=[
+        JobColumns.TITLE, JobColumns.CONTENT, JobColumns.COMPANY, JobColumns.LINK,
+        JobColumns.DATE, JobColumns.IS_READ, JobColumns.IS_APPLY, JobColumns.IS_REFUSED,
+        JobColumns.IS_GOOD_OFFER, JobColumns.COMMENT, JobColumns.SCORE,
+        JobColumns.CUSTOM_PROFILE, JobColumns.DAYS_DIFF
+    ])
 
-df = load_data()
+df = load_data(DATA_FILE)
+st.session_state["df"] = df
 
-# Initialiser session state pour la navigation
-if "index" not in st.session_state:
-    st.session_state.index = 0
+st.title("💼 Assistant de Recherche d'Emploi Intelligent")
+st.write("---")
 
-# Navigation entre pages
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Aller à :", ["Mettre à jour les offres", "Nouvelles offres d'emploi", "Offres filtrées par GPT", "Offres déjà lu", "Candidatures refusés", "Candidatures en cours"])
+if not df.empty:
+    total_offres = len(df)
+    a_lire = len(df[(df[JobColumns.IS_READ] == 0) & (df[JobColumns.IS_GOOD_OFFER] == 1)])
+    en_cours = len(df[(df[JobColumns.IS_APPLY] == 1) & (df[JobColumns.IS_REFUSED] == 0)])
 
-# Page permettant de scrap les nouvelles offres
-if page == "Mettre à jour les offres":
-    scrapping_page()
-
-# Page d'accueil - Affiche les offres non lues
-if page == "Nouvelles offres d'emploi":
-    new_offer_page(df)
-
-# Offre filtrer par LLM
-elif page == "Offres filtrées par GPT":
-    offer_gpt_filter_page(df)
-
-# Page des postes déjà lu
-elif page == "Offres déjà lu":
-    offer_readed_page(df)
-
-# Page des postes refusés
-elif page == "Candidatures refusés":
-    offer_refused_page(df)
-
-
-# Page des postes postulés
-elif page == "Candidatures en cours":
-    offer_applied_page(df)
-
-
-
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total d'offres collectées", total_offres)
+    col2.metric("Nouvelles offres à analyser", a_lire, delta=f"{a_lire} urgentes", delta_color="inverse")
+    col3.metric("Candidatures en cours", en_cours)
+else:
+    st.info("Aucune donnée disponible. Rendez-vous sur la page de Scraping pour collecter vos premières offres.")

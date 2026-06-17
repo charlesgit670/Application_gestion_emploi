@@ -76,7 +76,8 @@ def add_LLM_comment(client_LLM, llm_config, row):
 
         if llm_config["provider"] == "Local":
             response = generate(
-                model="gemma3:12b",
+                model="gemma4:26b",
+                think=False,
                 options={
                     "temperature": 0.1,
                 },
