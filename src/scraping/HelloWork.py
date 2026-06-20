@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import re
 
 from scraping.JobFinder import JobFinder
-from scraping.utils import measure_time
+from scraping.utils import measure_time, build_keyword_urls
 
 
 class HelloWork(JobFinder):
@@ -16,15 +16,18 @@ class HelloWork(JobFinder):
         with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
-        self.url = re.sub(r'k=[^&]*', 'k={}', config['url']['hw'])
+        self.url_template = re.sub(r'k=[^&]*', 'k={keyword}', config['url']['hw'])
+        self.keyword_mode = config.get("keyword_mode", {}).get("hw", "one_by_one")
         self.filter_day_scrap = int(config["filter_day_scrap"])
 
     def build_urls(self):
-        urls = []
-        for k in self.keywords:
-            keyword = "+".join(k.split())
-            urls.append(self.url.format(keyword))
-        return urls
+        return build_keyword_urls(
+            base_url=self.url_template,
+            keywords=self.keywords,
+            mode=self.keyword_mode,
+            encode_mode="query",
+            quote_terms_for_or=False,
+        )
 
     def parse_date(self, date_str):
         now = datetime.now()

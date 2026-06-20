@@ -5,7 +5,7 @@ import urllib.parse
 import dateparser
 
 from scraping.JobFinder import JobFinder
-from scraping.utils import measure_time
+from scraping.utils import measure_time, build_keyword_urls
 
 
 class ServicePublic(JobFinder):
@@ -17,12 +17,18 @@ class ServicePublic(JobFinder):
         with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
-        self.url = re.sub(r'mot-cles/[^/]*', 'mot-cles/{}', config['url']['sp'])
+        self.url_template = re.sub(r'mot-cles/[^/]*', 'mot-cles/{keyword}', config['url']['sp'])
+        self.keyword_mode = config.get("keyword_mode", {}).get("sp", "one_by_one")
         self.filter_day_scrap = int(config["filter_day_scrap"])
 
-    def build_keywords(self):
-        joined_keywords = " ".join(self.keywords)
-        return urllib.parse.quote(joined_keywords)
+    def build_urls(self):
+        return build_keyword_urls(
+            base_url=self.url_template,
+            keywords=self.keywords,
+            mode=self.keyword_mode,
+            encode_mode="path",
+            quote_terms_for_or=False,
+        )
 
     def parse_date(self, date_to_parse):
         date_str = date_to_parse.replace("En ligne depuis le ", "").strip()

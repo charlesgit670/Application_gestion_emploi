@@ -4,15 +4,15 @@ import json
 import re
 import math
 import time
+from urllib.parse import urlsplit
 from datetime import datetime as dt, timedelta
 import random
 from bs4 import BeautifulSoup
 import backoff
 from requests.exceptions import RequestException, HTTPError
-import urllib.parse
 
 from scraping.JobFinder import JobFinder
-from scraping.utils import measure_time
+from scraping.utils import measure_time, build_keyword_urls
 
 class Linkedin(JobFinder):
 
@@ -52,9 +52,18 @@ class Linkedin(JobFinder):
         with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
-        self.url = re.sub(r'keywords=[^&]*', 'keywords={}', config['url']['linkedin'])
-        self.job_id_api = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" + self.url.split("search?")[1] + "&start={}"
+        self.url_template = re.sub(r'keywords=[^&]*', 'keywords={keyword}', config['url']['linkedin'])
+        self.keyword_mode = config.get("keyword_mode", {}).get("linkedin", "or")
         self.filter_day_scrap = int(config["filter_day_scrap"])
+
+    def build_urls(self):
+        return build_keyword_urls(
+            base_url=self.url_template,
+            keywords=self.keywords,
+            mode=self.keyword_mode,
+            encode_mode="query",
+            quote_terms_for_or=True,
+        )
 
     @measure_time
     def getJob(self, update_callback=None):

@@ -67,7 +67,26 @@ Sur la page **Mettre à jour les offres** :
   - **Mistral** : nécessite une clé API (version gratuite limitée).  
 - **Générer un score** : attribue un score (0–100) et un commentaire pour chaque offre (le prompt doit garder le format fourni).  
 - **Générer un profil personnalisé** : en fournissant un prompt et votre CV, l’application génère un texte accrocheur adapté à chaque offre.  
+### Modes keyword_mode
 
+Les valeurs possibles dans `config.json` > `keyword_mode` sont :
+
+- `one_by_one` : une URL de recherche par mot-clé (plus de volume, plus de bruit possible).
+- `or` : une seule URL avec les mots-clés combinés en `OR` (plus ciblé).
+- `all` : une seule URL avec tous les mots-clés concaténés (plus strict, moins de résultats).
+
+Exemple:
+
+```json
+"keyword_mode": {
+  "wttj": "one_by_one",
+  "apec": "or",
+  "linkedin": "or",
+  "sp": "one_by_one",
+  "hw": "one_by_one",
+  "ft": "one_by_one"
+}
+```
 ---
 
 ## 🔐 Sécurité des clés API

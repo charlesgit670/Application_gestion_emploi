@@ -8,7 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import urllib.parse
 
 from scraping.JobFinder import JobFinder
-from scraping.utils import measure_time, create_driver
+from scraping.utils import measure_time, create_driver, build_keyword_urls
 
 
 class Apec(JobFinder):
@@ -22,23 +22,26 @@ class Apec(JobFinder):
         with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
-        self.url = re.sub(r'motsCles=[^&]*', 'motsCles={}', config['url']['apec'])
+        self.url_template = re.sub(r'motsCles=[^&]*', 'motsCles={keyword}', config['url']['apec'])
+        self.keyword_mode = config.get("keyword_mode", {}).get("apec", "or")
         self.filter_day_scrap = int(config["filter_day_scrap"])
 
-    def build_keywords(self):
-        joined_keywords = " OR ".join([f'"{kw}"' for kw in self.keywords])
-        return urllib.parse.quote(joined_keywords)
+    def build_urls(self):
+        return build_keyword_urls(
+            base_url=self.url_template,
+            keywords=self.keywords,
+            mode=self.keyword_mode,
+            encode_mode="query",
+            quote_terms_for_or=True,
+        )
 
 
     @measure_time
     def getJob(self, update_callback=None):
         driver = create_driver()
-        keyword = self.build_keywords()
-        driver.get(self.url.format(keyword))
 
         # Stocker tous les jobs trouvés
         all_jobs = []
-        count = 1
         list_title = []
         list_content = []
         list_company = []
@@ -46,7 +49,11 @@ class Apec(JobFinder):
         list_datetime = []
 
         try:
-            while True:
+            for url in self.build_urls():
+                driver.get(url)
+                count = 1
+
+                while True:
                 print(f"Page {count}")
 
                 # Fermer la bannière de cookies si elle est présente

@@ -14,7 +14,7 @@ from selenium.common.exceptions import NoSuchElementException
 import urllib.parse
 
 from scraping.JobFinder import JobFinder
-from scraping.utils import measure_time, create_driver
+from scraping.utils import measure_time, create_driver, build_keyword_urls
 
 
 class WelcomeToTheJungle(JobFinder):
@@ -27,15 +27,18 @@ class WelcomeToTheJungle(JobFinder):
         with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
-        self.url = re.sub(r'query=[^&]*', 'query={}', config['url']['wttj'])
+        self.url_template = re.sub(r'query=[^&]*', 'query={keyword}', config['url']['wttj'])
+        self.keyword_mode = config.get("keyword_mode", {}).get("wttj", "one_by_one")
         self.filter_day_scrap = int(config["filter_day_scrap"])
 
     def build_urls(self):
-        list_url = []
-        for k in self.keywords:
-            keyword = urllib.parse.quote(k)
-            list_url.append(self.url.format(f'"{keyword}"'))
-        return list_url
+        return build_keyword_urls(
+            base_url=self.url_template,
+            keywords=self.keywords,
+            mode=self.keyword_mode,
+            encode_mode="query",
+            quote_terms_for_or=False,
+        )
 
     # def __login(self, driver):
     #     load_dotenv()

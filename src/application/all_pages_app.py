@@ -40,6 +40,14 @@ def load_config():
                 "hw": False,
                 "ft": False
             },
+            "keyword_mode": {
+                "wttj": "one_by_one",
+                "apec": "or",
+                "linkedin": "or",
+                "sp": "one_by_one",
+                "hw": "one_by_one",
+                "ft": "one_by_one"
+            },
             "filter_day_scrap": 7,
             "language_filter": {
                 "fr": True,
