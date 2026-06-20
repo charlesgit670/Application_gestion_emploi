@@ -34,11 +34,22 @@ def get_all_job(progress_dict, all_platforms, is_multiproc):
     def run_source(source_class):
         name = source_class.__name__
         platform = source_class()
+        callback_state = {'total': 0}
 
         def update_callback(current, total):
+            callback_state['total'] = total
             progress_dict[name] = (current, total)
 
-        return platform.getJob(update_callback=update_callback)
+        try:
+            result = platform.getJob(update_callback=update_callback)
+            # Garantir l'état terminal après scraping réussi
+            if callback_state['total'] > 0:
+                progress_dict[name] = (callback_state['total'], callback_state['total'])
+            return result
+        except Exception as e:
+            # État terminal en cas d'erreur : (1, 1)
+            progress_dict[name] = (1, 1)
+            raise
 
     if is_multiproc:
         results = []
