@@ -160,7 +160,49 @@ def get_store_data():
 #     similarity = fuzz.ratio(content1, content2)
 #     return similarity >= threshold
 
-def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, language_filter):
+def apply_pre_filter(df, pre_filter_config):
+    """
+    Applique un pré-filtre blacklist/whitelist sur les offres avant traitement LLM.
+    - Blacklist : exclut les offres contenant des mots/phrases
+    - Whitelist : inclut UNIQUEMENT les offres contenant au moins un mot/phrase
+    """
+    if not pre_filter_config or (not pre_filter_config.get("blacklist") and not pre_filter_config.get("whitelist")):
+        return df
+    
+    blacklist = pre_filter_config.get("blacklist", [])
+    whitelist = pre_filter_config.get("whitelist", [])
+    
+    filtered_df = df.copy()
+    
+    # Appliquer blacklist
+    if blacklist:
+        for term in blacklist:
+            if pd.isna(term) or not str(term).strip():
+                continue
+            pattern = str(term).strip()
+            filtered_df = filtered_df[
+                ~(filtered_df['title'].str.contains(pattern, case=False, na=False) |
+                  filtered_df['content'].str.contains(pattern, case=False, na=False) |
+                  filtered_df['company'].str.contains(pattern, case=False, na=False))
+            ]
+    
+    # Appliquer whitelist (si non vide, ne garder que les lignes qui matchent)
+    if whitelist:
+        whitelist_mask = pd.Series([False] * len(filtered_df), index=filtered_df.index)
+        for term in whitelist:
+            if pd.isna(term) or not str(term).strip():
+                continue
+            pattern = str(term).strip()
+            whitelist_mask |= (
+                filtered_df['title'].str.contains(pattern, case=False, na=False) |
+                filtered_df['content'].str.contains(pattern, case=False, na=False) |
+                filtered_df['company'].str.contains(pattern, case=False, na=False)
+            )
+        filtered_df = filtered_df[whitelist_mask]
+    
+    return filtered_df
+
+def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, language_filter, pre_filter_config=None):
     """Ajoute les nouvelles entrées du new_df à stored_df en vérifiant l'unicité sur 'link' et la similarité sur 'content'."""
 
     # Load client LLM
@@ -174,6 +216,7 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, lang
             client = None
 
     if stored_df.empty:
+        new_df = apply_pre_filter(new_df, pre_filter_config)
         if use_llm:
             tqdm.pandas()
             new_df = new_df.progress_apply(lambda row: add_LLM_comment(client, llm_config, row), axis=1)
@@ -207,7 +250,9 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, lang
 
     if new_rows:
         new_data = pd.DataFrame(new_rows)
-        return pd.concat([stored_df, new_data], ignore_index=True)
+        merged_df = pd.concat([stored_df, new_data], ignore_index=True)
+        merged_df = apply_pre_filter(merged_df, pre_filter_config)
+        return merged_df
     else:
         return stored_df
 
