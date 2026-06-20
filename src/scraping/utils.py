@@ -3,6 +3,7 @@ import re
 import json
 import functools
 import threading
+import urllib.parse
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
@@ -59,6 +60,49 @@ def create_driver():
 
     driver = webdriver.Chrome(service=Service(_driver_path), options=options)
     return driver
+
+def normalize_keywords(keywords):
+    cleaned = []
+    seen = set()
+    for keyword in keywords or []:
+        if keyword is None:
+            continue
+        value = str(keyword).strip()
+        if not value:
+            continue
+        lower = value.lower()
+        if lower in seen:
+            continue
+        seen.add(lower)
+        cleaned.append(value)
+    return cleaned
+
+def _encode_keyword(value, encode_mode):
+    if encode_mode == "query":
+        return urllib.parse.quote_plus(value)
+    if encode_mode == "path":
+        return urllib.parse.quote(value, safe="")
+    raise ValueError(f"encode_mode inconnu: {encode_mode}")
+
+def build_keyword_urls(base_url, keywords, mode="one_by_one", encode_mode="query", quote_terms_for_or=False):
+    if "{keyword}" not in base_url:
+        raise ValueError("Le template d'URL doit contenir {keyword}.")
+    clean_keywords = normalize_keywords(keywords)
+    if not clean_keywords:
+        return []
+    if mode == "one_by_one":
+        terms = clean_keywords
+    elif mode == "or":
+        if quote_terms_for_or:
+            joined = " OR ".join([f"\"{kw}\"" for kw in clean_keywords])
+        else:
+            joined = " OR ".join(clean_keywords)
+        terms = [joined]
+    elif mode == "all":
+        terms = [" ".join(clean_keywords)]
+    else:
+        raise ValueError(f"keyword mode inconnu: {mode}")
+    return [base_url.format(keyword=_encode_keyword(term, encode_mode)) for term in terms]
 
 # max_tries=6 donne des délais cumulés de 1+2+4+8+16+32=63s, suffisant pour
 # laisser la fenêtre de rate limit se réinitialiser (généralement 60s).
