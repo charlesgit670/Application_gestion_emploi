@@ -22,11 +22,11 @@ class Linkedin(JobFinder):
         # self.job_id_api = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={}&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=5&f_JT=F&f_E=2%2C3%2C4&f_PP=102924436%2C103424094%2C106218810&f_TPR=r2592000&position=1&pageNum=0&start={}'
         self.job_description_api = 'https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}'
 
-    def _parse_total_offer(self, text):
-        try:
-            return int(text.strip())
-        except (ValueError, AttributeError):
+    def _parse_total_offer(self, count_text):
+        if not count_text:
             return 0
+        digits = re.sub(r"[^\d]", "", count_text)
+        return int(digits) if digits else 0
 
     def get_config(self):
         with open('config.json', 'r', encoding="utf-8") as f:
@@ -55,6 +55,13 @@ class Linkedin(JobFinder):
         job_id = parts[-1].strip()
         return job_id or None
 
+    def _parse_job_datetime(self, raw_datetime):
+        try:
+            return dt.fromisoformat(raw_datetime)
+        except (TypeError, ValueError):
+            print(f"Date LinkedIn invalide, offre ignorée: {raw_datetime}")
+            return None
+
     @measure_time
     def getJob(self, update_callback=None):
         all_job_id = []
@@ -62,18 +69,27 @@ class Linkedin(JobFinder):
         all_job_datetime = []
 
         for search_url in self.build_urls():
+            # Récupérer le nombre total d'offre pour chaque URL de recherche
             res = self.get_content(search_url)
             soup = BeautifulSoup(res.text, 'html.parser')
             span = soup.find('span', class_='results-context-header__job-count')
             if span is None:
+                print(f"Compteur d'offres LinkedIn introuvable, recherche ignorée: {search_url}")
                 continue
+
             total_offer = self._parse_total_offer(span.get_text())
+            if not total_offer:
+                print(f"Compteur d'offres LinkedIn illisible ('{span.get_text(strip=True)}'), recherche ignorée: {search_url}")
+                continue
 
             query_string = urlsplit(search_url).query
             if not query_string:
+                print(f"URL LinkedIn ignorée (query manquante): {search_url}")
                 continue
+
             job_id_api = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" + query_string + "&start={}"
 
+            # Récupérer tous les job id
             for i in range(0, math.ceil(total_offer / 10)):
                 res = self.get_content(job_id_api.format(i * 10))
                 if res is None:
@@ -87,6 +103,7 @@ class Linkedin(JobFinder):
 
                     jobid = self._extract_job_id_from_urn(base_card.get('data-entity-urn', ''))
                     if not jobid:
+                        print("Offre LinkedIn ignorée (job id absent/invalide).")
                         continue
 
                     link_tag = job_on_this_page.find("a")
@@ -97,10 +114,14 @@ class Linkedin(JobFinder):
                     time_tag = job_on_this_page.find("time")
                     jobDateTime = time_tag.get("datetime") if time_tag else None
                     if not jobDateTime:
+                        print("Date LinkedIn invalide, offre ignorée: datetime manquant")
                         continue
 
+                    # on filtre les offres trop ancienne
                     date_limit = dt.now() - timedelta(days=self.filter_day_scrap)
-                    job_datetime_obj = dt.fromisoformat(jobDateTime)
+                    job_datetime_obj = self._parse_job_datetime(jobDateTime)
+                    if job_datetime_obj is None:
+                        continue
 
                     if job_datetime_obj >= date_limit and jobid not in all_job_id:
                         all_job_id.append(jobid)
@@ -109,6 +130,7 @@ class Linkedin(JobFinder):
 
         print(f"Nombre de fiche de poste Linkedin récupéré {len(all_job_id)}")
 
+        # Récupérer le contenu de toutes les fiches de poste
         list_title = []
         list_content = []
         list_company = []
@@ -118,10 +140,15 @@ class Linkedin(JobFinder):
         total = len(all_job_id)
         for i, job_id in enumerate(all_job_id):
         # for job_id in tqdm(all_job_id):
-            company, jobTitle, jobDescription = self.get_job_details(job_id)
-            list_title.append(jobTitle)
-            list_content.append(jobDescription)
-            list_company.append(company)
+            try:
+                company, jobTitle, jobDescription = self.get_job_details(job_id)
+                list_title.append(jobTitle)
+                list_content.append(jobDescription)
+                list_company.append(company)
+            except Exception as exc:
+                print(f"Détails LinkedIn ignorés pour {job_id}: {exc}")
+                continue
+
             print(f"Linkedin {i}/{total}")
             if update_callback:
                 update_callback(i + 1, total)
@@ -140,11 +167,26 @@ class Linkedin(JobFinder):
 
         soup = BeautifulSoup(resp.text, 'html.parser')
 
-        company = soup.find("div", {"class": "top-card-layout__card"}).find("a").find("img").get('alt')
-        jobTitle = soup.find("div", {"class": "top-card-layout__entity-info"}).find("a").text.strip()
-        jobDescription = soup.find("div",
-                                   class_="show-more-less-html__markup show-more-less-html__markup--clamp-after-5 relative overflow-hidden") \
-                             .get_text(separator="\n", strip=True)
+        company = ""
+        company_card = soup.find("div", {"class": "top-card-layout__card"})
+        if company_card is not None:
+            company_link = company_card.find("a")
+            company_img = company_link.find("img") if company_link else None
+            company = company_img.get('alt', '').strip() if company_img else ""
+
+        jobTitle = ""
+        entity_info = soup.find("div", {"class": "top-card-layout__entity-info"})
+        if entity_info is not None:
+            title_link = entity_info.find("a")
+            if title_link is not None:
+                jobTitle = title_link.get_text(strip=True)
+
+        jobDescription = ""
+        desc_node = soup.find("div", class_=re.compile(r"show-more-less-html__markup"))
+        if desc_node is not None:
+            jobDescription = desc_node.get_text(separator="\n", strip=True)
+        else:
+            print(f"Description LinkedIn absente pour job_id={job_id}")
 
         return company, jobTitle, jobDescription
 
