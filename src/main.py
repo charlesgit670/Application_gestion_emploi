@@ -29,6 +29,43 @@ class Platform(Enum):
     hw = HelloWork
     ft = FranceTravail
 
+
+def validate_scraping_config(config):
+    errors = []
+    allowed_modes = {"one_by_one", "or", "all"}
+
+    keywords = config.get("keywords", [])
+    if not isinstance(keywords, list) or not any(str(k).strip() for k in keywords):
+        errors.append("keywords doit être une liste non vide")
+
+    launch_scrap = config.get("launch_scrap", {})
+    if not isinstance(launch_scrap, dict):
+        errors.append("launch_scrap doit être un objet")
+        launch_scrap = {}
+
+    urls = config.get("url", {})
+    keyword_modes = config.get("keyword_mode", {})
+    active_keys = [key for key, active in launch_scrap.items() if active]
+
+    for key in active_keys:
+        if key not in Platform.__members__:
+            errors.append(f"plateforme inconnue dans launch_scrap: {key}")
+            continue
+        if not urls.get(key):
+            errors.append(f"url.{key} manquant")
+        mode = keyword_modes.get(key)
+        if not mode:
+            errors.append(f"keyword_mode.{key} manquant")
+        elif mode not in allowed_modes:
+            errors.append(f"keyword_mode.{key} invalide: {mode}")
+
+    if errors:
+        print("Configuration invalide:")
+        for err in errors:
+            print(f" - {err}")
+        return False
+    return True
+
 def get_all_job(progress_dict, all_platforms, is_multiproc):
 
     def run_source(source_class):
@@ -187,6 +224,9 @@ def update_store_data(progress_dict):
         config_file = "config.json"
         with open(config_file, "r", encoding="utf-8") as f:
             config = json.load(f)
+
+        if not validate_scraping_config(config):
+            return False
 
         active_platforms = [Platform[key].value for key, active in config["launch_scrap"].items() if active]
 
