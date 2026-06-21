@@ -77,6 +77,15 @@ class ServicePublic(JobFinder):
                 unique_jobs.append(job)
                 seen_links.add(link)
 
+        # Elimination des doublons
+        seen_links = set()
+        unique_jobs = []
+        for job in all_jobs:
+            link = job[2]
+            if link not in seen_links:
+                unique_jobs.append(job)
+                seen_links.add(link)
+
         # Récupérer le contenu de toutes les fiches de poste
         print(f"Nombre de fiche de poste du Service Public récupéré {len(unique_jobs)}")
         list_title = []
