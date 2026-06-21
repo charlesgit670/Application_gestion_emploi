@@ -174,6 +174,17 @@ def add_custom_cv_profile(client_LLM, llm_config, row):
     return output_text
 
 
+def add_LLM_comment_and_track_progress(client, llm_config, row, i, total, progress_dict):
+    try:
+        result = add_LLM_comment(client, llm_config, row)
+    except Exception as e:
+        print(f"[LLM ERROR] add_LLM_comment échoué : {type(e).__name__}: {e}")
+        result = row
+    finally:
+        safe_total = total if total and total > 0 else 1
+        progress_dict["Traitement des nouvelles offres (LLM)"] = (i + 1, safe_total)
+    return result
+
 def is_language_allowed(languages_config, content):
     try:
         langue = detect(content)

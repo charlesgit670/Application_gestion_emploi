@@ -17,7 +17,7 @@ from scraping.WelcomeToTheJungle import WelcomeToTheJungle
 from scraping.Apec import Apec
 from scraping.Linkedin import Linkedin
 from scraping.ServicePublic import ServicePublic
-from scraping.utils import measure_time, add_LLM_comment, is_language_allowed
+from scraping.utils import measure_time, add_LLM_comment, is_language_allowed, add_LLM_comment_and_track_progress
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
@@ -62,6 +62,7 @@ def get_all_job(progress_dict, all_platforms, is_multiproc):
                 try:
                     results.append(future.result())
                 except Exception as e:
+                    progress_dict[futures[future].__name__] = (1, 1)
                     print(f"Erreur lors du scraping de {futures[future].__name__}: {e}")
     else:
         results = []
@@ -69,6 +70,7 @@ def get_all_job(progress_dict, all_platforms, is_multiproc):
             try:
                 results.append(run_source(cls))
             except Exception as e:
+                progress_dict[cls.__name__] = (1, 1)
                 print(f"Erreur lors du scraping de {cls.__name__}: {e}")
 
     # Guard : si tous les scrapers ont échoué, pd.concat([]) lèverait une ValueError.
@@ -154,12 +156,13 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, lang
 
     for i, new_row in tqdm(enumerate(new_rows), total=len(new_rows), desc="Traitement des offres récupérées"):
         if use_llm:
-            new_rows[i] = add_LLM_comment(client, llm_config, new_row)
-            # Pause proactive pour rester sous le seuil de rate limit du provider LLM.
-            # Le décorateur @backoff gère les 429 reçus, mais cette pause réduit
-            # la probabilité d'en recevoir un en premier lieu (~2 req/s max).
+            new_rows[i] = add_LLM_comment_and_track_progress(client, llm_config, new_row, i, len(new_rows), progress_dict)
             time.sleep(0.5)
-        progress_dict["Traitement des nouvelles offres (LLM)"] = (i + 1, len(new_rows))
+        else:
+            safe_total = len(new_rows) if len(new_rows) > 0 else 1
+            progress_dict["Traitement des nouvelles offres (LLM)"] = (i + 1, safe_total)
+
+    progress_dict["Traitement des nouvelles offres (LLM)"] = (max(len(new_rows), 1), max(len(new_rows), 1))
 
     if new_rows:
         new_data = pd.DataFrame(new_rows)
