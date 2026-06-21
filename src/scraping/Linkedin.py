@@ -68,6 +68,9 @@ class Linkedin(JobFinder):
         all_job_link = []
         all_job_datetime = []
 
+        total_pagination_steps = 0
+        completed_steps = 0
+
         for search_url in self.build_urls():
             # Récupérer le nombre total d'offre pour chaque URL de recherche
             res = self.get_content(search_url)
@@ -87,12 +90,17 @@ class Linkedin(JobFinder):
                 print(f"URL LinkedIn ignorée (query manquante): {search_url}")
                 continue
 
+            page_count = math.ceil(total_offer / 10)
+            total_pagination_steps += page_count
             job_id_api = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" + query_string + "&start={}"
 
             # Récupérer tous les job id
-            for i in range(0, math.ceil(total_offer / 10)):
+            for i in range(0, page_count):
                 res = self.get_content(job_id_api.format(i * 10))
                 if res is None:
+                    completed_steps += 1
+                    if update_callback:
+                        update_callback(completed_steps, total_pagination_steps + max(len(all_job_id), 1))
                     continue
                 soup = BeautifulSoup(res.text, 'html.parser')
                 alljobs_on_this_page = soup.find_all("li")
@@ -128,6 +136,9 @@ class Linkedin(JobFinder):
                         all_job_link.append(joblink)
                         all_job_datetime.append(jobDateTime)
 
+                completed_steps += 1
+                if update_callback:
+                    update_callback(completed_steps, total_pagination_steps + max(len(all_job_id), 1))
         print(f"Nombre de fiche de poste Linkedin récupéré {len(all_job_id)}")
 
         # Récupérer le contenu de toutes les fiches de poste
@@ -138,6 +149,7 @@ class Linkedin(JobFinder):
         list_datetime = all_job_datetime
 
         total = len(all_job_id)
+        total_steps = total_pagination_steps + max(total, 1)
         for i, job_id in enumerate(all_job_id):
         # for job_id in tqdm(all_job_id):
             try:
@@ -147,11 +159,16 @@ class Linkedin(JobFinder):
                 list_company.append(company)
             except Exception as exc:
                 print(f"Détails LinkedIn ignorés pour {job_id}: {exc}")
+                if update_callback:
+                    update_callback(total_pagination_steps + i + 1, total_steps)
                 continue
 
             print(f"Linkedin {i}/{total}")
             if update_callback:
-                update_callback(i + 1, total)
+                update_callback(total_pagination_steps + i + 1, total_steps)
+
+        if update_callback:
+            update_callback(total_steps, total_steps)
 
         df = self.formatData("linkedin", list_title, list_content, list_company, list_link, list_datetime)
         df = df.drop_duplicates(subset="hash", keep="first")

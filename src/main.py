@@ -36,9 +36,17 @@ def get_all_job(progress_dict, all_platforms, is_multiproc):
         platform = source_class()
 
         def update_callback(current, total):
-            progress_dict[name] = (current, total)
+            safe_total = total if total and total > 0 else 1
+            safe_current = max(0, min(current, safe_total))
+            progress_dict[name] = (safe_current, safe_total)
 
-        return platform.getJob(update_callback=update_callback)
+        df = platform.getJob(update_callback=update_callback)
+
+        current, total = progress_dict.get(name, (0, 1))
+        if current < total:
+            progress_dict[name] = (total, total)
+
+        return df
 
     if is_multiproc:
         results = []
