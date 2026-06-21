@@ -1,7 +1,6 @@
 import json
 import re
 from bs4 import BeautifulSoup
-import urllib.parse
 import dateparser
 
 from scraping.JobFinder import JobFinder
@@ -37,39 +36,32 @@ class ServicePublic(JobFinder):
 
     @measure_time
     def getJob(self, update_callback=None):
-        keywords = self.build_keywords()
-        url = self.url.format(keywords)
-
-        # On récupère le nombre de page total à scrap
-        res = self.get_content(url)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        try:
-            pages = soup.select("ul.fr-pagination__list a.fr-pagination__link")
-            page_numbers = [int(a.get_text(strip=True)) for a in pages if a.get_text(strip=True).isdigit()]
-            last_page = max(page_numbers)
-        except:
-            last_page = 1
-
-
-        # Stocker tous les jobs trouvés pour chaque page
         all_jobs = []
-        for i in range(last_page):
-            res = self.get_content(url + f"page/{i+1}")
+        for url in self.build_urls():
+            # On récupère le nombre de page total à scrap pour chaque URL keyword
+            res = self.get_content(url)
             soup = BeautifulSoup(res.text, 'html.parser')
-            # offers = soup.select("div.fr-col-12.item")
-            offers = soup.select("li.fr-col-12.item")
-            for num, offer in enumerate(offers):
-                job_link = offer.select_one("a.is-same-domain")["href"]
-                job_title = offer.select_one("a.is-same-domain").get_text(strip=True)
-                try:
-                    job_ministere = offer.select_one("img.fr-responsive-img").get("alt")
-                except:
-                    job_ministere = offer.select_one("div.fr-responsive-img").get_text(strip=True)
-                job_datetime = self.parse_date(offer.select_one("li.fr-icon-calendar-line").get_text(strip=True))
+            try:
+                pages = soup.select("ul.fr-pagination__list a.fr-pagination__link")
+                page_numbers = [int(a.get_text(strip=True)) for a in pages if a.get_text(strip=True).isdigit()]
+                last_page = max(page_numbers) if page_numbers else 1
+            except Exception:
+                last_page = 1
 
-                all_jobs.append((job_title, job_ministere, job_link, job_datetime))
-
-
+            # Stocker tous les jobs trouvés pour chaque page et chaque keyword
+            for i in range(last_page):
+                res = self.get_content(url + f"page/{i + 1}")
+                soup = BeautifulSoup(res.text, 'html.parser')
+                offers = soup.select("li.fr-col-12.item")
+                for num, offer in enumerate(offers):
+                    job_link = offer.select_one("a.is-same-domain")["href"]
+                    job_title = offer.select_one("a.is-same-domain").get_text(strip=True)
+                    try:
+                        job_ministere = offer.select_one("img.fr-responsive-img").get("alt")
+                    except Exception:
+                        job_ministere = offer.select_one("div.fr-responsive-img").get_text(strip=True)
+                    job_datetime = self.parse_date(offer.select_one("li.fr-icon-calendar-line").get_text(strip=True))
+                    all_jobs.append((job_title, job_ministere, job_link, job_datetime))
 
         # Récupérer le contenu de toutes les fiches de poste
         print(f"Nombre de fiche de poste du Service Public récupéré {len(all_jobs)}")
@@ -80,33 +72,30 @@ class ServicePublic(JobFinder):
         list_datetime = []
         total = len(all_jobs)
         for i, (title, comp, link, datetime) in enumerate(all_jobs):
-                res = self.get_content(link)
-                soup = BeautifulSoup(res.text, 'html.parser')
+            res = self.get_content(link)
+            soup = BeautifulSoup(res.text, 'html.parser')
+            target_div = soup.find(
+                "div",
+                class_=lambda x: x is not None and "col-left" in x.split() and "rte" in x.split()
+            )
 
-                target_div = soup.find(
-                    "div",
-                    class_=lambda x: x is not None and "col-left" in x.split() and "rte" in x.split()
-                )
-
-                if not target_div:
-                    # si la description n'est pas trouvée, on passe au job suivant
-                    print(f"Aucune description trouvée pour {title}, passage au suivant.")
-                    if update_callback:
-                        update_callback(i + 1, total)
-                    continue
-
-                job_description = target_div.get_text(separator="\n", strip=True)
-
-                list_title.append(title)
-                list_content.append(job_description)
-                list_company.append(comp)
-                list_link.append(link)
-                list_datetime.append(datetime)
-
-                print(f"Service Public {i}/{total}")
+            if not target_div:
+                # si la description n'est pas trouvée, on passe au job suivant
+                print(f"Aucune description trouvée pour {title}, passage au suivant.")
                 if update_callback:
                     update_callback(i + 1, total)
+                continue
+            job_description = target_div.get_text(separator="\n", strip=True)
 
+            list_title.append(title)
+            list_content.append(job_description)
+            list_company.append(comp)
+            list_link.append(link)
+            list_datetime.append(datetime)
+
+            print(f"Service Public {i}/{total}")
+            if update_callback:
+                update_callback(i + 1, total)
 
         df = self.formatData("sp", list_title, list_content, list_company, list_link, list_datetime)
         df = df.drop_duplicates(subset="hash", keep="first")
