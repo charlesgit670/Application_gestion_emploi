@@ -229,6 +229,9 @@ def update_store_data(progress_dict):
             return False
 
         active_platforms = [Platform[key].value for key, active in config["launch_scrap"].items() if active]
+        if not active_platforms:
+            print("Aucune plateforme active dans launch_scrap, scraping annulé.")
+            return True
 
         new_df = get_all_job(progress_dict, active_platforms, config["use_multithreading"])
 
