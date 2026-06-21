@@ -160,50 +160,28 @@ def get_store_data():
 #     similarity = fuzz.ratio(content1, content2)
 #     return similarity >= threshold
 
-def apply_pre_filter(df, pre_filter_config):
-    """
-    Applique un pré-filtre blacklist/whitelist sur les offres avant traitement LLM.
-    - Blacklist : exclut les offres contenant des mots/phrases
-    - Whitelist : inclut UNIQUEMENT les offres contenant au moins un mot/phrase
-    """
-    if not pre_filter_config or (not pre_filter_config.get("blacklist") and not pre_filter_config.get("whitelist")):
-        return df
-    
+def apply_pre_filter(row, pre_filter_config):
+    """Applique le pré-filtre regex sur title + content. Retourne True si l'offre passe, False sinon."""
+    if not pre_filter_config.get("enabled", False):
+        return True
+
+    text = (row.get("title", "") + " " + row.get("content", "")).lower()
+
     blacklist = pre_filter_config.get("blacklist", [])
+    for word in blacklist:
+        if word.lower() in text:
+            return False
+
     whitelist = pre_filter_config.get("whitelist", [])
-    
-    filtered_df = df.copy()
-    
-    # Appliquer blacklist
-    if blacklist:
-        for term in blacklist:
-            if pd.isna(term) or not str(term).strip():
-                continue
-            pattern = str(term).strip()
-            filtered_df = filtered_df[
-                ~(filtered_df['title'].str.contains(pattern, case=False, na=False) |
-                  filtered_df['content'].str.contains(pattern, case=False, na=False) |
-                  filtered_df['company'].str.contains(pattern, case=False, na=False))
-            ]
-    
-    # Appliquer whitelist (si non vide, ne garder que les lignes qui matchent)
-    if whitelist:
-        whitelist_mask = pd.Series([False] * len(filtered_df), index=filtered_df.index)
-        for term in whitelist:
-            if pd.isna(term) or not str(term).strip():
-                continue
-            pattern = str(term).strip()
-            whitelist_mask |= (
-                filtered_df['title'].str.contains(pattern, case=False, na=False) |
-                filtered_df['content'].str.contains(pattern, case=False, na=False) |
-                filtered_df['company'].str.contains(pattern, case=False, na=False)
-            )
-        filtered_df = filtered_df[whitelist_mask]
-    
-    return filtered_df
+    if whitelist and len(whitelist) > 0:
+        return any(word.lower() in text for word in whitelist)
+
+    return True
 
 def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, language_filter, pre_filter_config=None):
     """Ajoute les nouvelles entrées du new_df à stored_df en vérifiant l'unicité sur 'link' et la similarité sur 'content'."""
+    if pre_filter_config is None:
+        pre_filter_config = {"enabled": False}
 
     # Load client LLM
     client = None
@@ -216,7 +194,11 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, lang
             client = None
 
     if stored_df.empty:
-        new_df = apply_pre_filter(new_df, pre_filter_config)
+        filtered_rows = []
+        for _, row in new_df.iterrows():
+            if apply_pre_filter(row, pre_filter_config):
+                filtered_rows.append(row)
+        new_df = pd.DataFrame(filtered_rows) if filtered_rows else pd.DataFrame()
         if use_llm:
             tqdm.pandas()
             new_df = new_df.progress_apply(lambda row: add_LLM_comment(client, llm_config, row), axis=1)
@@ -238,21 +220,32 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, lang
             # if not any(is_similar(new_row['content'], existing_content) for existing_content in stored_df['content']):
                     new_rows.append(new_row)
 
-    for i, new_row in tqdm(enumerate(new_rows), total=len(new_rows), desc="Traitement des offres récupérées"):
-        if use_llm:
-            new_rows[i] = add_LLM_comment_and_track_progress(client, llm_config, new_row, i, len(new_rows), progress_dict)
+    # Étape 1 : Pré-filtrage par regex avant LLM (impact fort)
+    filtered_rows = []
+    for row in new_rows:
+        if apply_pre_filter(row, pre_filter_config):
+            filtered_rows.append(row)
+        else:
+            # Offre rejetée par pré-filtre : marquer score=0 sans appel LLM
+            row["score"] = 0
+            row["is_good_offer"] = 0
+            row["comment"] = "Filtré (pré-filtre)"
+            row["custom_profile"] = ""
+            filtered_rows.append(row)
+
+    for i, new_row in tqdm(enumerate(filtered_rows), total=len(filtered_rows), desc="Traitement des offres récupérées"):
+        if use_llm and new_row.get("comment") != "Filtré (pré-filtre)":
+            filtered_rows[i] = add_LLM_comment_and_track_progress(client, llm_config, new_row, i, len(filtered_rows), progress_dict)
             time.sleep(0.5)
         else:
-            safe_total = len(new_rows) if len(new_rows) > 0 else 1
+            safe_total = len(filtered_rows) if len(filtered_rows) > 0 else 1
             progress_dict["Traitement des nouvelles offres (LLM)"] = (i + 1, safe_total)
 
-    progress_dict["Traitement des nouvelles offres (LLM)"] = (max(len(new_rows), 1), max(len(new_rows), 1))
+    progress_dict["Traitement des nouvelles offres (LLM)"] = (max(len(filtered_rows), 1), max(len(filtered_rows), 1))
 
-    if new_rows:
-        new_data = pd.DataFrame(new_rows)
-        merged_df = pd.concat([stored_df, new_data], ignore_index=True)
-        merged_df = apply_pre_filter(merged_df, pre_filter_config)
-        return merged_df
+    if filtered_rows:
+        new_data = pd.DataFrame(filtered_rows)
+        return pd.concat([stored_df, new_data], ignore_index=True)
     else:
         return stored_df
 
@@ -289,7 +282,13 @@ def update_store_data(progress_dict):
         store_df = get_store_data()
         # .get() avec valeur par défaut : rétrocompatibilité avec les anciens
         # config.json qui ne contiennent pas encore la clé "language_filter".
-        merged_df = merge_dataframes(progress_dict, store_df, new_df, config["use_llm"], config["llm"], config.get("language_filter", {"fr": True, "en": True, "autre": True}))
+        merged_df = merge_dataframes(
+            progress_dict, store_df, new_df,
+            config["use_llm"],
+            config["llm"],
+            config.get("language_filter", {"fr": True, "en": True, "autre": True}),
+            config.get("pre_filter", {"enabled": False})
+        )
         save_data(merged_df)
 
         return True
