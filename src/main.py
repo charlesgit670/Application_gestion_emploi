@@ -113,9 +113,11 @@ def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config, lang
     client = None
     if use_llm:
         if llm_config["provider"] == "ChatGPT":
-            client = OpenAI(api_key=llm_config.get("gpt_api_key"))
+            gpt_api_key = os.getenv("GPT_API_KEY") or llm_config.get("gpt_api_key")
+            client = OpenAI(api_key=gpt_api_key)
         elif llm_config["provider"] == "Mistral":
-            client = Mistral(api_key=llm_config.get("mistral_api_key"))
+            mistral_api_key = os.getenv("MISTRAL_API_KEY") or llm_config.get("mistral_api_key")
+            client = Mistral(api_key=mistral_api_key)
         elif llm_config["provider"] == "Local":
             client = None
 
