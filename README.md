@@ -56,6 +56,7 @@ Sur la page **Mettre à jour les offres** :
 - **Suivi en temps réel** : 4 barres de progression (une par jobboard + une pour le traitement LLM si activé).  
 - **Mots-clés** : un mot-clé par ligne.  
 - **URLs des sites** : collez l’URL de recherche issue des jobboards après avoir configuré les filtres comme la localisation (des exemples sont fournis).  
+- **Mode des mots-clés (`keyword_mode`)** : définit comment la requête est construite pour chaque jobboard.  
 - **Jobboards à scrapper** : cochez les plateformes souhaitées.  
 - **Options générales** :
   - Un filtre pour récupérer que les offres les plus récentes (en nombre de jours) sauf pour le Service Public.
