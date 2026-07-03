@@ -75,14 +75,27 @@ class HelloWork(JobFinder):
                 for i in range(last_page):
                     res = self.get_content(url + f"&p={i + 1}")
                     soup = BeautifulSoup(res.text, 'html.parser')
-                    offers = soup.find('ul', {'aria-label': 'liste des offres'}).find_all('li', recursive=False)
+                    result_list = soup.find('ul', {'aria-label': 'liste des offres'})
+                    if not result_list:
+                        continue
+                    offers = result_list.find_all('li', recursive=False)
                     for num, offer in enumerate(offers):
                         offer_content = offer.find('a', attrs={"data-cy": "offerTitle"})
+                        if not offer_content:
+                            continue
+                        title_elem = offer_content.find('h3')
+                        if not title_elem:
+                            continue
+                        paragraphs = title_elem.find_all('p')
+                        if not paragraphs:
+                            continue
+                        date_elem = offer.find('div', class_='text-grey-500')
+                        if not date_elem:
+                            continue
                         job_link = "https://www.hellowork.com" + offer_content.get('href', '')
-                        paragraphs = offer_content.find('h3').find_all('p')
                         job_title = paragraphs[0].get_text(strip=True)
                         job_company = paragraphs[1].get_text(strip=True) if len(paragraphs) > 1 else "Non spécifié"
-                        job_datetime = self.parse_date(offer.find('div', class_='text-grey-500').get_text(strip=True))
+                        job_datetime = self.parse_date(date_elem.get_text(strip=True))
 
                         date_limit = datetime.now() - timedelta(days=self.filter_day_scrap)
                         if job_title and job_link and job_company and job_datetime >= date_limit:

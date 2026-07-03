@@ -88,6 +88,14 @@ Exemple:
   "ft": "one_by_one"
 }
 ```
+
+### Dépannage rapide
+
+- Si aucune offre n’est récupérée: vérifier `launch_scrap.<plateforme> = true`.
+- Si le scraping ne démarre pas: vérifier la présence des clés `keywords`, `url.<plateforme>`, `keyword_mode.<plateforme>`.
+- Si le volume est trop faible: tester `one_by_one` au lieu de `all`.
+- Si le volume est trop bruité: tester `or` ou `all`.
+
 ---
 
 ## 📌 Fonctionnalités principales
