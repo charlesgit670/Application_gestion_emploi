@@ -235,11 +235,10 @@ def update_store_data(progress_dict):
 
         new_df = get_all_job(progress_dict, active_platforms, config["use_multithreading"])
 
-        # Si tous les scrapers ont échoué, on ne touche pas au CSV existant :
-        # écraser data/job.csv avec un DataFrame sans colonnes casserait app.py
-        # (qui s'attend à trouver les colonnes date, title, etc.).
+        # Si aucun scraper n'a renvoyé d'offre valide, on ne touche pas au CSV
+        # existant pour éviter d'écraser des colonnes attendues par l'app.
         if new_df.empty:
-            print("Aucune offre collectée (tous les scrapers ont échoué), sauvegarde annulée.")
+            print("Aucune offre valide collectée, sauvegarde annulée.")
             return True
 
         store_df = get_store_data()
