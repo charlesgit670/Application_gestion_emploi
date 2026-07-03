@@ -1,7 +1,6 @@
 import streamlit as st
 import threading
 import time
-import asyncio
 import pandas as pd
 import json
 import os
@@ -235,7 +234,7 @@ def scrapping_page():
             st.session_state.progress_bars[k].progress(0, text=f"{k} (0 offres - 0%)")
 
         def run(progress_dict):
-            success = asyncio.run(update_store_data(progress_dict))
+            success = update_store_data(progress_dict)
             result_container["success"] = success
 
         progress_dict = st.session_state.progress_dict
