@@ -3,13 +3,10 @@ import re
 import time
 
 from bs4 import BeautifulSoup
-import urllib.parse
-import dateparser
 from datetime import datetime, timedelta
-import re
 
 from scraping.JobFinder import JobFinder
-from scraping.utils import measure_time
+from scraping.utils import measure_time, build_keyword_urls
 
 
 class FranceTravail(JobFinder):
@@ -21,15 +18,19 @@ class FranceTravail(JobFinder):
         with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
-        self.url = re.sub(r'([?&])range=[^&]*(&|$)', r'\1', re.sub(r'motsCles=[^&]*', 'motsCles={}', config['url']['ft'])).rstrip('&')
+        url = re.sub(r'motsCles=[^&]*', 'motsCles={keyword}', config['url']['ft'])
+        self.url_template = re.sub(r'([?&])range=[^&]*(&|$)', r'\1', url).rstrip('&?')
+        self.keyword_mode = config.get("keyword_mode", {}).get("ft", "one_by_one")
         self.filter_day_scrap = int(config["filter_day_scrap"])
 
     def build_urls(self):
-        urls = []
-        for k in self.keywords:
-            keyword = "+".join(k.split())
-            urls.append(self.url.format(keyword))
-        return urls
+        return build_keyword_urls(
+            base_url=self.url_template,
+            keywords=self.keywords,
+            mode=self.keyword_mode,
+            encode_mode="query",
+            quote_terms_for_or=False,
+        )
 
     def parse_date(self, date_str):
         now = datetime.now()

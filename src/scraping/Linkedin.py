@@ -1,18 +1,17 @@
 from tqdm import tqdm
-import pandas as pd
 import json
 import re
 import math
 import time
+from urllib.parse import urlsplit
 from datetime import datetime as dt, timedelta
 import random
 from bs4 import BeautifulSoup
 import backoff
 from requests.exceptions import RequestException, HTTPError
-import urllib.parse
 
 from scraping.JobFinder import JobFinder
-from scraping.utils import measure_time
+from scraping.utils import measure_time, build_keyword_urls
 
 class Linkedin(JobFinder):
 
@@ -52,9 +51,28 @@ class Linkedin(JobFinder):
         with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
-        self.url = re.sub(r'keywords=[^&]*', 'keywords={}', config['url']['linkedin'])
-        self.job_id_api = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" + self.url.split("search?")[1] + "&start={}"
+        self.url_template = re.sub(r'keywords=[^&]*', 'keywords={keyword}', config['url']['linkedin'])
+        self.keyword_mode = config.get("keyword_mode", {}).get("linkedin", "or")
         self.filter_day_scrap = int(config["filter_day_scrap"])
+
+    def build_urls(self):
+        return build_keyword_urls(
+            base_url=self.url_template,
+            keywords=self.keywords,
+            mode=self.keyword_mode,
+            encode_mode="query",
+            quote_terms_for_or=True,
+        )
+
+    def _extract_job_id_from_urn(self, urn):
+        urn = (urn or "").strip()
+        if ":" not in urn:
+            return None
+        parts = [part for part in urn.split(":") if part]
+        if not parts:
+            return None
+        job_id = parts[-1].strip()
+        return job_id or None
 
     @measure_time
     def getJob(self, update_callback=None):
@@ -68,9 +86,9 @@ class Linkedin(JobFinder):
         all_job_id = []
         all_job_link = []
         all_job_datetime = []
-        for i in range(0, math.ceil(total_offer / 10)):
 
-            res = self.get_content(self.job_id_api.format(keywords, i * 10))
+        for search_url in self.build_urls():
+            res = self.get_content(search_url)
             soup = BeautifulSoup(res.text, 'html.parser')
             alljobs_on_this_page = soup.find_all("li")
             for job_on_this_page in alljobs_on_this_page:
@@ -105,9 +123,9 @@ class Linkedin(JobFinder):
                         all_job_id.append(jobid)
                         all_job_link.append(joblink)
                         all_job_datetime.append(jobDateTime)
+
         print(f"Nombre de fiche de poste Linkedin récupéré {len(all_job_id)}")
 
-        # Récupérer le contenu de toutes les fiches de poste
         list_title = []
         list_content = []
         list_company = []
@@ -181,15 +199,8 @@ class Linkedin(JobFinder):
         return company, jobTitle, jobDescription
 
 
-    def build_keywords(self):
-        joined_keywords = " OR ".join([f'"{kw}"' for kw in self.keywords])
-        return urllib.parse.quote(joined_keywords)
-
-
-
 if __name__ == "__main__":
     job = Linkedin()
     df = job.getJob()
     df = df.sort_values(by="date", ascending=False)
     print("a")
-

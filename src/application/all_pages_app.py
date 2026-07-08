@@ -19,46 +19,68 @@ def get_color(score):
     g = int(score * 2.55)
     return f"rgb({r},{g},0)"
 
+DEFAULT_CONFIG = {
+    "keywords": [],
+    "url": {
+        "wttj": "",
+        "apec": "",
+        "linkedin": "",
+        "sp": ""
+    },
+    "launch_scrap": {
+        "wttj": False,
+        "apec": False,
+        "linkedin": False,
+        "sp": False,
+        "hw": False,
+        "ft": False
+    },
+    "keyword_mode": {
+        "wttj": "one_by_one",
+        "apec": "or",
+        "linkedin": "or",
+        "sp": "one_by_one",
+        "hw": "one_by_one",
+        "ft": "one_by_one"
+    },
+    "filter_day_scrap": 7,
+    "language_filter": {
+        "fr": True,
+        "en":  False,
+        "autre": False
+    },
+    "use_multithreading": False,
+    "use_llm": False,
+    "llm": {
+        "provider": "Local",
+        "gpt_api_key": "",
+        "mistral_api_key": "",
+        "generate_score": False,
+        "prompt_score": "",
+        "generate_custom_profile": False,
+        "prompt_custom_profile": "",
+        "cv": ""
+    }
+}
+
+def _backfill_defaults(config, defaults):
+    """Ajoute récursivement les clés manquantes d'un config.json existant (ex: keyword_mode
+    absent d'un fichier sauvegardé avant l'ajout de cette fonctionnalité), sans écraser les
+    valeurs déjà présentes."""
+    for key, default_value in defaults.items():
+        if key not in config:
+            config[key] = default_value
+        elif isinstance(default_value, dict) and isinstance(config[key], dict):
+            _backfill_defaults(config[key], default_value)
+    return config
+
 def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            config = json.load(f)
+        return _backfill_defaults(config, DEFAULT_CONFIG)
     else:
-        return {
-            "keywords": [],
-            "url": {
-                "wttj": "",
-                "apec": "",
-                "linkedin": "",
-                "sp": ""
-            },
-            "launch_scrap": {
-                "wttj": False,
-                "apec": False,
-                "linkedin": False,
-                "sp": False,
-                "hw": False,
-                "ft": False
-            },
-            "filter_day_scrap": 7,
-            "language_filter": {
-                "fr": True,
-                "en":  False,
-                "autre": False
-            },
-            "use_multithreading": False,
-            "use_llm": False,
-            "llm": {
-                "provider": "Local",
-                "gpt_api_key": "",
-                "mistral_api_key": "",
-                "generate_score": False,
-                "prompt_score": "",
-                "generate_custom_profile": False,
-                "prompt_custom_profile": "",
-                "cv": ""
-            }
-        }
+        return _backfill_defaults({}, DEFAULT_CONFIG)
 
 def configuration_page():
     # 💾 Sauvegarder la configuration
