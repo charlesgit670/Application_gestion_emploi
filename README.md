@@ -88,6 +88,32 @@ Exemple:
   "ft": "one_by_one"
 }
 ```
+
+### Dépannage rapide
+
+- Si aucune offre n’est récupérée: vérifier `launch_scrap.<plateforme> = true`.
+- Si le scraping ne démarre pas: vérifier la présence des clés `keywords`, `url.<plateforme>`, `keyword_mode.<plateforme>`.
+- Si le volume est trop faible: tester `one_by_one` au lieu de `all`.
+- Si le volume est trop bruité: tester `or` ou `all`.
+
+Les valeurs possibles dans `config.json` > `keyword_mode` sont :
+
+- `one_by_one` : une URL de recherche par mot-clé (plus de volume, plus de bruit possible).
+- `or` : une seule URL avec les mots-clés combinés en `OR` (plus ciblé).
+- `all` : une seule URL avec tous les mots-clés concaténés (plus strict, moins de résultats).
+
+Exemple:
+
+```json
+"keyword_mode": {
+  "wttj": "one_by_one",
+  "apec": "or",
+  "linkedin": "or",
+  "sp": "one_by_one",
+  "hw": "one_by_one",
+  "ft": "one_by_one"
+}
+```
 ---
 
 ## 🔐 Sécurité des clés API
