@@ -184,26 +184,39 @@ class Linkedin(JobFinder):
 
         soup = BeautifulSoup(resp.text, 'html.parser')
 
-        company = ""
-        company_card = soup.find("div", {"class": "top-card-layout__card"})
-        if company_card is not None:
-            company_link = company_card.find("a")
-            company_img = company_link.find("img") if company_link else None
-            company = company_img.get('alt', '').strip() if company_img else ""
+        # Guard: top-card-layout__card
+        card = soup.find("div", {"class": "top-card-layout__card"})
+        if not card:
+            raise ValueError("Could not find top-card-layout__card")
+        link = card.find("a")
+        if not link:
+            raise ValueError("Could not find link in card")
+        img = link.find("img")
+        if not img:
+            raise ValueError("Could not find img in link")
+        company = img.get('alt')
+        if not company:
+            raise ValueError("Could not find alt text for company")
 
-        jobTitle = ""
+        # Guard: top-card-layout__entity-info
         entity_info = soup.find("div", {"class": "top-card-layout__entity-info"})
-        if entity_info is not None:
-            title_link = entity_info.find("a")
-            if title_link is not None:
-                jobTitle = title_link.get_text(strip=True)
+        if not entity_info:
+            raise ValueError("Could not find top-card-layout__entity-info")
+        title_link = entity_info.find("a")
+        if not title_link:
+            raise ValueError("Could not find link in entity-info")
+        jobTitle = title_link.text.strip()
+        if not jobTitle:
+            raise ValueError("Could not extract job title")
 
-        jobDescription = ""
-        desc_node = soup.find("div", class_=re.compile(r"show-more-less-html__markup"))
-        if desc_node is not None:
-            jobDescription = desc_node.get_text(separator="\n", strip=True)
-        else:
-            print(f"Description LinkedIn absente pour job_id={job_id}")
+        # Guard: show-more-less-html__markup
+        description_div = soup.find("div",
+                                   class_="show-more-less-html__markup show-more-less-html__markup--clamp-after-5 relative overflow-hidden")
+        if not description_div:
+            raise ValueError("Could not find description div")
+        jobDescription = description_div.get_text(separator="\n", strip=True)
+        if not jobDescription:
+            raise ValueError("Could not extract job description")
 
         return company, jobTitle, jobDescription
 

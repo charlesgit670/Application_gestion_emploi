@@ -96,6 +96,58 @@ Exemple:
 - Si le volume est trop faible: tester `one_by_one` au lieu de `all`.
 - Si le volume est trop bruité: tester `or` ou `all`.
 
+Les valeurs possibles dans `config.json` > `keyword_mode` sont :
+
+- `one_by_one` : une URL de recherche par mot-clé (plus de volume, plus de bruit possible).
+- `or` : une seule URL avec les mots-clés combinés en `OR` (plus ciblé).
+- `all` : une seule URL avec tous les mots-clés concaténés (plus strict, moins de résultats).
+
+Exemple:
+
+```json
+"keyword_mode": {
+  "wttj": "one_by_one",
+  "apec": "or",
+  "linkedin": "or",
+  "sp": "one_by_one",
+  "hw": "one_by_one",
+  "ft": "one_by_one"
+}
+```
+---
+
+## 🔐 Sécurité des clés API
+
+Les clés API pour OpenAI (ChatGPT) et Mistral peuvent être fournies de deux façons :
+
+### 1. **Via variables d'environnement (recommandé)**
+Définissez les variables d'environnement avant de lancer l'application :
+
+```bash
+# Linux / macOS
+export GPT_API_KEY="votre-clé-openai"
+export MISTRAL_API_KEY="votre-clé-mistral"
+streamlit run src/app.py
+
+# Windows (PowerShell)
+$env:GPT_API_KEY="votre-clé-openai"
+$env:MISTRAL_API_KEY="votre-clé-mistral"
+streamlit run src/app.py
+
+# Windows (CMD)
+set GPT_API_KEY=votre-clé-openai
+set MISTRAL_API_KEY=votre-clé-mistral
+streamlit run src/app.py
+```
+
+### 2. **Via configuration (`config.json`)**
+Si les variables d'environnement ne sont pas définies, l'application utilise les clés stockées dans `config.json` (champs `llm.gpt_api_key` et `llm.mistral_api_key`).
+
+### Priorité de résolution
+Variables d'environnement → Configuration `config.json`
+
+**⚠️ Conseil sécurité** : Préférez les variables d'environnement pour éviter de stocker les clés en clair dans le fichier de configuration.
+
 ---
 
 ## 📌 Fonctionnalités principales
