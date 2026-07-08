@@ -23,7 +23,7 @@
     "wttj": "one_by_one",
     "apec": "or",
     "linkedin": "or",
-    "sp": "one_by_one",
+    "sp": "all",
     "hw": "one_by_one",
     "ft": "one_by_one"
   },
