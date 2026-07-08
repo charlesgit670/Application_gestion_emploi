@@ -1,9 +1,12 @@
 import time
 import re
+import pandas as pd
 import json
 import functools
 import threading
+import urllib.parse
 from selenium import webdriver
+from aiolimiter import AsyncLimiter
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
@@ -13,11 +16,10 @@ from pydantic import BaseModel
 from langdetect import detect
 from langdetect.lang_detect_exception import LangDetectException
 
-# from scraping.prompts import my_resume, instruction_custom_profile, instruction_scoring
-
 class Format(BaseModel):
-    response: int
+    reponse: int
     justification: str
+    custom_profile: str = ""
 
 def measure_time(func):
     """Annotation pour mesurer le temps d'exécution d'une fonction"""
@@ -42,6 +44,10 @@ def measure_time(func):
 _driver_path_lock = threading.Lock()
 _driver_path = None
 
+# On limite à 1 requête par seconde (ou légèrement moins pour être sûr, ex: 1 req / 1.1 sec)
+# À ajuster selon les limites exactes du free tier pour le modèle choisi
+rate_limiter = AsyncLimiter(1, 1.1)
+
 # Fonction pour créer un driver
 def create_driver():
     global _driver_path
@@ -60,88 +66,152 @@ def create_driver():
     driver = webdriver.Chrome(service=Service(_driver_path), options=options)
     return driver
 
-# max_tries=6 donne des délais cumulés de 1+2+4+8+16+32=63s, suffisant pour
-# laisser la fenêtre de rate limit se réinitialiser (généralement 60s).
-# jitter=None pour des délais déterministes : on évite de retenter trop tôt
-# de manière aléatoire, ce qui aggraverait un 429 déjà actif.
-@backoff.on_exception(backoff.expo, Exception, max_tries=6, jitter=None)
-def add_LLM_comment(client_LLM, llm_config, row):
+def normalize_keywords(keywords):
+    cleaned = []
+    seen = set()
+    for keyword in keywords or []:
+        if keyword is None:
+            continue
+        value = str(keyword).strip()
+        if not value:
+            continue
+        lower = value.lower()
+        if lower in seen:
+            continue
+        seen.add(lower)
+        cleaned.append(value)
+    return cleaned
+
+def _encode_keyword(value, encode_mode):
+    if encode_mode == "query":
+        return urllib.parse.quote_plus(value)
+    if encode_mode == "path":
+        return urllib.parse.quote(value, safe="")
+    raise ValueError(f"encode_mode inconnu: {encode_mode}")
+
+def build_keyword_urls(base_url, keywords, mode="one_by_one", encode_mode="query", quote_terms_for_or=False):
+    if "{keyword}" not in base_url:
+        raise ValueError("Le template d'URL doit contenir {keyword}.")
+    clean_keywords = normalize_keywords(keywords)
+    if not clean_keywords:
+        return []
+    if mode == "one_by_one":
+        terms = clean_keywords
+    elif mode == "or":
+        if quote_terms_for_or:
+            joined = " OR ".join([f"\"{kw}\"" for kw in clean_keywords])
+        else:
+            joined = " OR ".join(clean_keywords)
+        terms = [joined]
+    elif mode == "all":
+        terms = [" ".join(clean_keywords)]
+    else:
+        raise ValueError(f"keyword mode inconnu: {mode}")
+    return [base_url.format(keyword=_encode_keyword(term, encode_mode)) for term in terms]
+
+# Throttle proactif dédié à ChatGPT (indépendant de rate_limiter, réservé à Mistral) :
+# le sleep(0.5) qui s'appliquait après chaque appel LLM, quel que soit le provider, a
+# été retiré lors du passage à l'async ; on le remplace ici pour ne pas se reposer
+# uniquement sur le retry réactif côté ChatGPT.
+chatgpt_rate_limiter = AsyncLimiter(3, 1)
+
+# Semaphore + sleep(1.1) évitent proactivement les 429 (free tier Mistral : 1 req/s).
+# Le backoff est un filet de sécurité : full_jitter désynchronise les retries
+# entre threads, max_time=120 laisse suffisamment de marge en cas de congestion.
+@backoff.on_exception(backoff.expo, Exception, max_time=120, jitter=backoff.full_jitter)
+async def add_LLM_comment(client_LLM, llm_config, row):
     """
     Modifier l'instruction_scoring en fonction de ce que vous recherchez
     """
+    # Guard: si score existe déjà, sauter le traitement (évite double-traitement)
+    if pd.notna(row.get('score')) and row.get('score') != -1:
+        return row
+
     if llm_config["generate_score"]:
         title = row["title"]
         company = row["company"]
         description = row["content"]
 
+        # Construire le prompt combiné (score + custom_profile si nécessaire)
+        score_prompt = llm_config["prompt_score"] + "\n" + company + "\n" + title + "\n" + description
+
+        # Si generate_custom_profile est activé, demander aussi le profil personnalisé
+        if llm_config.get("generate_custom_profile", False):
+            score_prompt += "\n\n" + llm_config["cv"] + "\n" + llm_config["prompt_custom_profile"]
+
         if llm_config["provider"] == "Local":
+            format_spec = {
+                "type": "object",
+                "properties": {
+                    "reponse": {"type": "number"},
+                    "justification": {"type": "string"},
+                }
+            }
+            if llm_config.get("generate_custom_profile", False):
+                format_spec["properties"]["custom_profile"] = {"type": "string"}
+
             response = generate(
                 model="gemma4:26b",
-                think=False,
-                options={
-                    "temperature": 0.1,
-                },
-                format={
-                    "type": "object",
-                    "properties": {
-                        "reponse": {
-                            "type": "number"
-                        },
-                        "justification": {
-                            "type": "string",
-                        },
-                    }
-                },
-                prompt=llm_config["prompt_score"] + "\n" + company + "\n" + title + "\n" + description,
-
+                options={"temperature": 0.1},
+                format=format_spec,
+                prompt=score_prompt,
             )
             json_output = json.loads(response.response)
         elif llm_config["provider"] == "ChatGPT":
-            response = client_LLM.responses.parse(
-                model="gpt-4o-mini",
-                instructions=llm_config["prompt_score"],
-                temperature=0.1,
-                input=company + "\n" + title + "\n" + description,
-                text_format=Format
-            )
+            chatgpt_input = company + "\n" + title + "\n" + description
+            if llm_config.get("generate_custom_profile", False):
+                chatgpt_input += "\n\n" + llm_config["cv"] + "\n" + llm_config["prompt_custom_profile"]
+            async with chatgpt_rate_limiter:
+                response = client_LLM.responses.parse(
+                    model="gpt-4o-mini",
+                    instructions=llm_config["prompt_score"],
+                    temperature=0.1,
+                    input=chatgpt_input,
+                    text_format=Format
+                )
             json_output = json.loads(response.output_text)
         elif llm_config["provider"] == "Mistral":
-            chat_response = client_LLM.chat.complete(
-                model="mistral-large-latest",
-                temperature=0.1,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": llm_config["prompt_score"] + "\n" + company + "\n" + title + "\n" + description,
-                    },
-                ],
-                response_format={
-                    "type": "json_object",
-                    "json_schema": {
-                        "reponse": {
-                            "type": "integer"
-                        },
-                        "justification": {
-                            "type": "string",
-                        },
-                    }
-                }
-            )
+            async with rate_limiter:
+                chat_response = await client_LLM.chat.complete_async(
+                    model="mistral-small-latest",
+                    temperature=0.1,
+                    messages=[{"role": "user", "content": score_prompt}],
+                    response_format={"type": "json_object"}
+                )
             json_output = json.loads(chat_response.choices[0].message.content)
 
         row["is_good_offer"] = 1 if int(json_output["reponse"]) >= 50 else 0
         row["comment"] = json_output["justification"]
         row["score"] = int(json_output["reponse"])
 
-    if llm_config["generate_custom_profile"] and (
-            not llm_config["generate_score"] or row["is_good_offer"] == 1
-    ):
-        row["custom_profile"] = add_custom_cv_profile(client_LLM, llm_config, row)
+        # Extraire custom_profile du JSON si présent, uniquement pour les offres jugées
+        # pertinentes (comme avant : on ne garde le profil personnalisé que si is_good_offer).
+        if (
+            llm_config.get("generate_custom_profile", False)
+            and row["is_good_offer"] == 1
+            and "custom_profile" in json_output
+        ):
+            row["custom_profile"] = json_output["custom_profile"]
+    elif llm_config.get("generate_custom_profile", False):
+        # Si generate_score=false mais generate_custom_profile=true
+        row["custom_profile"] = await add_custom_cv_profile(client_LLM, llm_config, row)
 
     return row
 
+async def add_LLM_comment_and_track_progress(client, llm_config, row, i, total, progress_dict):
+    try:
+        result = await add_LLM_comment(client, llm_config, row)
+    except Exception as e:
+        print(f"[LLM ERROR] add_LLM_comment échoué : {type(e).__name__}: {e}")
+        result = row
+    finally:
+        # Use total if total > 0 else 1 to prevent division-by-zero
+        safe_total = total if total and total > 0 else 1
+        progress_dict["Traitement des nouvelles offres (LLM)"] = (i + 1, safe_total)
+    return result
 
-def add_custom_cv_profile(client_LLM, llm_config, row):
+@backoff.on_exception(backoff.expo, Exception, max_time=120, jitter=backoff.full_jitter)
+async def add_custom_cv_profile(client_LLM, llm_config, row):
     if llm_config["provider"] == "Local":
         response = generate(
             model="gemma3:12b",
@@ -160,16 +230,17 @@ def add_custom_cv_profile(client_LLM, llm_config, row):
         )
         output_text = response.output_text
     elif llm_config["provider"] == "Mistral":
-        chat_response = client_LLM.chat.complete(
-            model="mistral-large-latest",
-            temperature=0.1,
-            messages=[
-                {
-                    "role": "user",
-                    "content": llm_config["cv"] + "\n" + row["content"],
-                },
-            ],
-        )
+        async with rate_limiter:
+            chat_response = await client_LLM.chat.complete_async(
+                model="mistral-large-latest",
+                temperature=0.1,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": llm_config["cv"] + "\n" + row["content"],
+                    },
+                ],
+            )
         output_text = chat_response.choices[0].message.content
 
     return output_text
@@ -183,5 +254,4 @@ def is_language_allowed(languages_config, content):
     if langue in languages_config:
         return languages_config[langue]
     return languages_config.get("autre", False)
-
 

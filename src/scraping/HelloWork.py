@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import re
 
 from scraping.JobFinder import JobFinder
-from scraping.utils import measure_time
+from scraping.utils import measure_time, build_keyword_urls
 
 
 class HelloWork(JobFinder):
@@ -16,15 +16,18 @@ class HelloWork(JobFinder):
         with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
         self.keywords = config['keywords']
-        self.url = re.sub(r'k=[^&]*', 'k={}', config['url']['hw'])
+        self.url_template = re.sub(r'k=[^&]*', 'k={keyword}', config['url']['hw'])
+        self.keyword_mode = config.get("keyword_mode", {}).get("hw", "one_by_one")
         self.filter_day_scrap = int(config["filter_day_scrap"])
 
     def build_urls(self):
-        urls = []
-        for k in self.keywords:
-            keyword = "+".join(k.split())
-            urls.append(self.url.format(keyword))
-        return urls
+        return build_keyword_urls(
+            base_url=self.url_template,
+            keywords=self.keywords,
+            mode=self.keyword_mode,
+            encode_mode="query",
+            quote_terms_for_or=False,
+        )
 
     def parse_date(self, date_str):
         now = datetime.now()
@@ -72,14 +75,27 @@ class HelloWork(JobFinder):
                 for i in range(last_page):
                     res = self.get_content(url + f"&p={i + 1}")
                     soup = BeautifulSoup(res.text, 'html.parser')
-                    offers = soup.find('ul', {'aria-label': 'liste des offres'}).find_all('li', recursive=False)
+                    result_list = soup.find('ul', {'aria-label': 'liste des offres'})
+                    if not result_list:
+                        continue
+                    offers = result_list.find_all('li', recursive=False)
                     for num, offer in enumerate(offers):
                         offer_content = offer.find('a', attrs={"data-cy": "offerTitle"})
+                        if not offer_content:
+                            continue
+                        title_elem = offer_content.find('h3')
+                        if not title_elem:
+                            continue
+                        paragraphs = title_elem.find_all('p')
+                        if not paragraphs:
+                            continue
+                        date_elem = offer.find('div', class_='text-grey-500')
+                        if not date_elem:
+                            continue
                         job_link = "https://www.hellowork.com" + offer_content.get('href', '')
-                        paragraphs = offer_content.find('h3').find_all('p')
                         job_title = paragraphs[0].get_text(strip=True)
                         job_company = paragraphs[1].get_text(strip=True) if len(paragraphs) > 1 else "Non spécifié"
-                        job_datetime = self.parse_date(offer.find('div', class_='text-grey-500').get_text(strip=True))
+                        job_datetime = self.parse_date(date_elem.get_text(strip=True))
 
                         date_limit = datetime.now() - timedelta(days=self.filter_day_scrap)
                         if job_title and job_link and job_company and job_datetime >= date_limit:

@@ -1,9 +1,7 @@
 {
   "keywords": [
     "data scientist",
-    "machine learning",
-    "deep learning",
-    "ML"
+    "machine learning"
   ],
   "url": {
     "wttj": "https://www.welcometothejungle.com/fr/jobs?refinementList%5Bcontract_type%5D%5B%5D=full_time&refinementList%5Bsectors.parent_reference%5D%5B%5D=industry-1&refinementList%5Bsectors.parent_reference%5D%5B%5D=public-administration-1&refinementList%5Bsectors.reference%5D%5B%5D=artificial-intelligence-machine-learning&refinementList%5Bsectors.reference%5D%5B%5D=big-data-1&refinementList%5Bsectors.reference%5D%5B%5D=cyber-security&refinementList%5Blanguage%5D%5B%5D=fr&refinementList%5Boffices.country_code%5D%5B%5D=FR&query=Data%20Scientist&page=1&aroundQuery=Nanterre%2C%20France&searchTitle=false&aroundLatLng=48.88822%2C2.19428&aroundRadius=20",
@@ -14,12 +12,20 @@
     "ft": "https://candidat.francetravail.fr/offres/recherche?emission=7&lieux=92050&motsCles=data+scientist&offresPartenaires=true&range=0-19&rayon=20&tri=0&typeContrat=CDI"
   },
   "launch_scrap": {
-    "wttj": true,
-    "apec": true,
-    "linkedin": true,
-    "sp": true,
-    "hw": true,
+    "wttj": false,
+    "apec": false,
+    "linkedin": false,
+    "sp": false,
+    "hw": false,
     "ft": true
+  },
+  "keyword_mode": {
+    "wttj": "one_by_one",
+    "apec": "or",
+    "linkedin": "or",
+    "sp": "all",
+    "hw": "one_by_one",
+    "ft": "one_by_one"
   },
   "filter_day_scrap": 7,
   "language_filter": {
@@ -29,6 +35,11 @@
   },
   "use_multithreading": true,
   "use_llm": true,
+  "pre_filter": {
+    "enabled": false,
+    "blacklist": [],
+    "whitelist": []
+  },
   "llm": {
     "provider": "Local",
     "gpt_api_key": "",
