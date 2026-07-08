@@ -11,7 +11,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
-import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from scraping.JobFinder import JobFinder
 from scraping.utils import measure_time, create_driver, build_keyword_urls
@@ -23,6 +23,7 @@ class WelcomeToTheJungle(JobFinder):
         # self.keywords = ["Data Scientist", "Machine Learning"]
         # self.url = "https://www.welcometothejungle.com/fr/jobs?refinementList%5Bcontract_type%5D%5B%5D=full_time&refinementList%5Bsectors.parent_reference%5D%5B%5D=industry-1&refinementList%5Bsectors.parent_reference%5D%5B%5D=public-administration-1&refinementList%5Bsectors.reference%5D%5B%5D=artificial-intelligence-machine-learning&refinementList%5Bsectors.reference%5D%5B%5D=big-data-1&refinementList%5Bsectors.reference%5D%5B%5D=cyber-security&refinementList%5Blanguage%5D%5B%5D=fr&refinementList%5Boffices.country_code%5D%5B%5D=FR&query={}&page=1&aroundQuery=Nanterre%2C%20France&searchTitle=false&aroundLatLng=48.88822%2C2.19428&aroundRadius=20"
         self.get_config()
+
     def get_config(self):
         with open('config.json', 'r', encoding="utf-8") as f:
             config = json.load(f)
@@ -39,6 +40,38 @@ class WelcomeToTheJungle(JobFinder):
             encode_mode="query",
             quote_terms_for_or=False,
         )
+
+    def scrape_job_detail(self, job_info, index, total):
+        """Récupère le détail d'une fiche de poste via un driver séparé (thread-safe)."""
+        title, comp, link, datetime = job_info
+        driver = create_driver()
+        try:
+            driver.get(link)
+            for attempt in range(3):
+                try:
+                    voir_plus = WebDriverWait(driver, 3).until(
+                        EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
+                    )
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", voir_plus)
+                    WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
+                    )
+                    voir_plus.click()
+                    description_div = WebDriverWait(driver, 10).until(
+                        EC.presence_of_element_located((By.XPATH, "//div[@id='the-position-section']"))
+                    )
+                    job_description = description_div.text
+                    print(f"WTTF {index}/{total}")
+                    return (title, comp, link, datetime, job_description)
+                except Exception as e:
+                    if attempt < 2:
+                        print(f"retrying... {attempt + 1}")
+                        time.sleep(1)
+                    else:
+                        print(f"Failed to scrap {link}")
+                        raise
+        finally:
+            driver.quit()
 
     # def __login(self, driver):
     #     load_dotenv()
@@ -98,6 +131,7 @@ class WelcomeToTheJungle(JobFinder):
 
         # Stocker tous les jobs trouvés
         all_jobs = []
+        seen_links = set()
         for url in list_urls:
             driver.get(url)
 
@@ -126,7 +160,12 @@ class WelcomeToTheJungle(JobFinder):
                     title = title_elem.text.strip()
                     link = title_elem.get_attribute("href")
 
-                    # nom de l’entreprise
+                    # Déduplication via seen_links
+                    if link in seen_links:
+                        continue
+                    seen_links.add(link)
+
+                    # nom de l'entreprise
                     company_elem = card.find_element(By.XPATH, ".//span[contains(concat(' ', normalize-space(@class), ' '), ' wui-text ')]")
                     company = company_elem.text.strip()
 
@@ -138,7 +177,7 @@ class WelcomeToTheJungle(JobFinder):
 
                     # Conversion de la date du job (ISO 8601 → datetime)
                     job_date = dt.fromisoformat(datetime_str.replace("Z", "+00:00"))
-                    # Date limite = aujourd’hui - 7 jours
+                    # Date limite = aujourd'hui - 7 jours
                     date_limit = dt.now(timezone.utc) - timedelta(days=self.filter_day_scrap)
 
                     if title and link and company and job_date >= date_limit:
@@ -163,66 +202,34 @@ class WelcomeToTheJungle(JobFinder):
                     print("Fin de pagination")
                     break
 
-        # Elimination des doublons
-        seen_links = set()
-        unique_jobs = []
+        # Driver principal fermé une seule fois, après la récupération des listes de toutes les URLs
+        driver.quit()
 
-        for job in all_jobs:
-            link = job[2]
-            if link not in seen_links:
-                unique_jobs.append(job)
-                seen_links.add(link)
-        # Récupérer le contenu de toutes les fiches de poste
-        print(f"Nombre de fiche de poste WelcomeToTheJungle récupéré {len(unique_jobs)}")
+        # Récupérer le contenu de toutes les fiches de poste en parallèle
+        print(f"Nombre de fiche de poste WelcomeToTheJungle récupéré {len(all_jobs)}")
         list_title = []
         list_content = []
         list_company = []
         list_link = []
         list_datetime = []
-        total = len(unique_jobs)
-        for i, (title, comp, link, datetime) in enumerate(unique_jobs):
-        # for title, comp, link, datetime in tqdm(all_jobs):
-            driver.get(link)
-
-            for attempt in range(3):
+        total = len(all_jobs)
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(self.scrape_job_detail, job, i, total): i 
+                for i, job in enumerate(all_jobs)
+            }
+            for future in as_completed(futures):
                 try:
-                    voir_plus = WebDriverWait(driver, 3).until(
-                        EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
-                    )
-
-                    # Scroll vers l'élément (important en headless)
-                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", voir_plus)
-
-                    WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, "//span[contains(text(), 'Voir plus')]"))
-                    )
-
-                    voir_plus.click()
-
-                    description_div = WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.XPATH, "//div[@id='the-position-section']"))
-                    )
-
-                    # Récupérer le texte
-                    job_description = description_div.text
+                    title, comp, link, datetime_str, job_description = future.result()
                     list_title.append(title)
                     list_content.append(job_description)
                     list_company.append(comp)
                     list_link.append(link)
-                    list_datetime.append(datetime)
-                    break
+                    list_datetime.append(datetime_str)
+                    if update_callback:
+                        update_callback(len(list_title), total)
                 except Exception as e:
-                    if attempt < 2:
-                        print(f"retrying... {attempt + 1}")
-                        time.sleep(1)
-                    else:
-                        print(f"Failed to scrap")
-                        print(link)
-            print(f"WTTF {i}/{total}")
-            if update_callback:
-                update_callback(i + 1, total)
-
-        driver.quit()
+                    print(f"Erreur lors de la récupération d'une fiche: {e}")
 
         df = self.formatData("wttj", list_title, list_content, list_company, list_link, list_datetime)
         df = df.drop_duplicates(subset="hash", keep="first")
@@ -236,4 +243,3 @@ if __name__ == "__main__":
     df = WTJ.getJob()
     df = df.sort_values(by="date", ascending=False)
     print("a")
-
