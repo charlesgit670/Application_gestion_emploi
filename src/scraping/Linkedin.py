@@ -22,11 +22,30 @@ class Linkedin(JobFinder):
         # self.job_id_api = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={}&location=Nanterre%2C%20%C3%8Ele-de-France%2C%20France&geoId=106218810&distance=5&f_JT=F&f_E=2%2C3%2C4&f_PP=102924436%2C103424094%2C106218810&f_TPR=r2592000&position=1&pageNum=0&start={}'
         self.job_description_api = 'https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{}'
 
-    def _parse_total_offer(self, text):
+    def _parse_total_offer(self, soup):
+        span = soup.find('span', class_='results-context-header__job-count')
+        if not span:
+            return 0
         try:
-            return int(text.strip())
+            return int(span.get_text(strip=True))
         except (ValueError, AttributeError):
             return 0
+
+    def _extract_job_id_from_urn(self, urn_str):
+        if not urn_str:
+            return None
+        parts = urn_str.split(":")
+        if len(parts) >= 4:
+            return parts[3]
+        return None
+
+    def _parse_job_datetime(self, datetime_str):
+        if not datetime_str:
+            return None
+        try:
+            return dt.fromisoformat(datetime_str)
+        except (ValueError, TypeError):
+            return None
 
     def get_config(self):
         with open('config.json', 'r', encoding="utf-8") as f:
@@ -57,6 +76,13 @@ class Linkedin(JobFinder):
 
     @measure_time
     def getJob(self, update_callback=None):
+        # Récupérer le nombre total d'offre
+        keywords = self.build_keywords()
+        res = self.get_content(self.url.format(keywords))
+        soup = BeautifulSoup(res.text, 'html.parser')
+        total_offer = self._parse_total_offer(soup)
+
+        # Récupérer tous les job id
         all_job_id = []
         all_job_link = []
         all_job_datetime = []
@@ -64,45 +90,36 @@ class Linkedin(JobFinder):
         for search_url in self.build_urls():
             res = self.get_content(search_url)
             soup = BeautifulSoup(res.text, 'html.parser')
-            span = soup.find('span', class_='results-context-header__job-count')
-            if span is None:
-                continue
-            total_offer = self._parse_total_offer(span.get_text())
-
-            query_string = urlsplit(search_url).query
-            if not query_string:
-                continue
-            job_id_api = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" + query_string + "&start={}"
-
-            for i in range(0, math.ceil(total_offer / 10)):
-                res = self.get_content(job_id_api.format(i * 10))
-                if res is None:
+            alljobs_on_this_page = soup.find_all("li")
+            for job_on_this_page in alljobs_on_this_page:
+                base_card = job_on_this_page.find("div", {"class": "base-card"})
+                if not base_card:
                     continue
-                soup = BeautifulSoup(res.text, 'html.parser')
-                alljobs_on_this_page = soup.find_all("li")
-                for job_on_this_page in alljobs_on_this_page:
-                    base_card = job_on_this_page.find("div", {"class": "base-card"})
-                    if base_card is None:
-                        continue
+                urn = base_card.get('data-entity-urn')
+                jobid = self._extract_job_id_from_urn(urn)
+                if not jobid:
+                    continue
+                link_elem = job_on_this_page.find("a")
+                if not link_elem:
+                    continue
+                joblink = link_elem.get("href")
+                if not joblink:
+                    continue
+                time_elem = job_on_this_page.find("time")
+                if not time_elem:
+                    continue
+                jobDateTime = time_elem.get("datetime")
+                if not jobDateTime:
+                    continue
 
-                    jobid = self._extract_job_id_from_urn(base_card.get('data-entity-urn', ''))
-                    if not jobid:
-                        continue
+                # on filtre les offres trop ancienne
+                date_limit = dt.now() - timedelta(days=self.filter_day_scrap)
+                job_datetime_obj = self._parse_job_datetime(jobDateTime)
+                if not job_datetime_obj:
+                    continue
 
-                    link_tag = job_on_this_page.find("a")
-                    joblink = link_tag.get("href", "") if link_tag else ""
-                    if not joblink:
-                        continue
-
-                    time_tag = job_on_this_page.find("time")
-                    jobDateTime = time_tag.get("datetime") if time_tag else None
-                    if not jobDateTime:
-                        continue
-
-                    date_limit = dt.now() - timedelta(days=self.filter_day_scrap)
-                    job_datetime_obj = dt.fromisoformat(jobDateTime)
-
-                    if job_datetime_obj >= date_limit and jobid not in all_job_id:
+                if job_datetime_obj >= date_limit:
+                    if jobid not in all_job_id:
                         all_job_id.append(jobid)
                         all_job_link.append(joblink)
                         all_job_datetime.append(jobDateTime)
@@ -118,10 +135,15 @@ class Linkedin(JobFinder):
         total = len(all_job_id)
         for i, job_id in enumerate(all_job_id):
         # for job_id in tqdm(all_job_id):
-            company, jobTitle, jobDescription = self.get_job_details(job_id)
-            list_title.append(jobTitle)
-            list_content.append(jobDescription)
-            list_company.append(company)
+            try:
+                company, jobTitle, jobDescription = self.get_job_details(job_id)
+                list_title.append(jobTitle)
+                list_content.append(jobDescription)
+                list_company.append(company)
+            except Exception as e:
+                print(f"Failed to get job details for job_id {job_id}: {e}")
+                continue
+
             print(f"Linkedin {i}/{total}")
             if update_callback:
                 update_callback(i + 1, total)
@@ -140,11 +162,39 @@ class Linkedin(JobFinder):
 
         soup = BeautifulSoup(resp.text, 'html.parser')
 
-        company = soup.find("div", {"class": "top-card-layout__card"}).find("a").find("img").get('alt')
-        jobTitle = soup.find("div", {"class": "top-card-layout__entity-info"}).find("a").text.strip()
-        jobDescription = soup.find("div",
-                                   class_="show-more-less-html__markup show-more-less-html__markup--clamp-after-5 relative overflow-hidden") \
-                             .get_text(separator="\n", strip=True)
+        # Guard: top-card-layout__card
+        card = soup.find("div", {"class": "top-card-layout__card"})
+        if not card:
+            raise ValueError("Could not find top-card-layout__card")
+        link = card.find("a")
+        if not link:
+            raise ValueError("Could not find link in card")
+        img = link.find("img")
+        if not img:
+            raise ValueError("Could not find img in link")
+        company = img.get('alt')
+        if not company:
+            raise ValueError("Could not find alt text for company")
+
+        # Guard: top-card-layout__entity-info
+        entity_info = soup.find("div", {"class": "top-card-layout__entity-info"})
+        if not entity_info:
+            raise ValueError("Could not find top-card-layout__entity-info")
+        title_link = entity_info.find("a")
+        if not title_link:
+            raise ValueError("Could not find link in entity-info")
+        jobTitle = title_link.text.strip()
+        if not jobTitle:
+            raise ValueError("Could not extract job title")
+
+        # Guard: show-more-less-html__markup
+        description_div = soup.find("div",
+                                   class_="show-more-less-html__markup show-more-less-html__markup--clamp-after-5 relative overflow-hidden")
+        if not description_div:
+            raise ValueError("Could not find description div")
+        jobDescription = description_div.get_text(separator="\n", strip=True)
+        if not jobDescription:
+            raise ValueError("Could not extract job description")
 
         return company, jobTitle, jobDescription
 
