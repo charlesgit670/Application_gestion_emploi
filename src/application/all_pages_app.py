@@ -1,6 +1,8 @@
 import streamlit as st
 import threading
+import asyncio
 import time
+import asyncio
 import pandas as pd
 import json
 import os
@@ -237,7 +239,8 @@ def scrapping_page():
         for platform, (current, total) in st.session_state.progress_dict.items():
             percent = int((current / total) * 100) if total > 0 else 0
             if platform not in st.session_state.progress_bars or st.session_state.progress_bars[platform] is None:
-                st.session_state.progress_bars[platform] = st.progress(percent, text=f"{platform} : {current} offres ({percent}%)")
+                st.session_state.progress_bars[platform] = st.empty()
+                st.session_state.progress_bars[platform].progress(percent, text=f"{platform} : {current} offres ({percent}%)")
             else:
                 st.session_state.progress_bars[platform].progress(
                     percent,
@@ -255,13 +258,13 @@ def scrapping_page():
         for k in st.session_state.progress_bars:
             st.session_state.progress_bars[k].progress(0, text=f"{k} (0 offres - 0%)")
 
-        def run(progress_dict):
-            success = update_store_data(progress_dict)
+        async def run(progress_dict):
+            success = await update_store_data(progress_dict)
             result_container["success"] = success
 
         progress_dict = st.session_state.progress_dict
         result_container = {}
-        thread = threading.Thread(target=run, args=(progress_dict,))
+        thread = threading.Thread(target=lambda: asyncio.run(run(progress_dict)))
         thread.start()
 
         # Boucle de suivi des barres
@@ -270,15 +273,23 @@ def scrapping_page():
                 current, total = st.session_state.progress_dict[platform]
                 percent = int((current / total) * 100) if total > 0 else 0
 
-                # Recrée si besoin (protection post-navigation)
-                if platform not in st.session_state.progress_bars or st.session_state.progress_bars[platform] is None:
-                    st.session_state.progress_bars[platform] = st.progress(percent, text=f"{platform} : {current} offres ({percent}%)")
-                else:
+                # Met à jour le placeholder existant
+                if platform in st.session_state.progress_bars and st.session_state.progress_bars[platform] is not None:
                     st.session_state.progress_bars[platform].progress(
                         percent,
                         text=f"{platform} : {current} offres ({percent}%)"
                     )
             time.sleep(0.2)
+
+        # Final forced update after thread ends to ensure 100% states are displayed
+        for platform in st.session_state.progress_dict:
+            current, total = st.session_state.progress_dict[platform]
+            percent = int((current / total) * 100) if total > 0 else 0
+            if platform in st.session_state.progress_bars and st.session_state.progress_bars[platform] is not None:
+                st.session_state.progress_bars[platform].progress(
+                    percent,
+                    text=f"{platform} : {current} offres ({percent}%)"
+                )
 
         # Affiche le message en fonction du résultat
         if result_container.get("success"):

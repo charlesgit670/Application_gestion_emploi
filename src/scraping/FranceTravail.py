@@ -63,7 +63,10 @@ class FranceTravail(JobFinder):
             h1_title = soup.select('h1.title')
             if not h1_title:
                 continue
-            total_offer = h1_title[0].get_text(strip=True).split()[0]
+            title_words = h1_title[0].get_text(strip=True).split()
+            if not title_words:
+                continue
+            total_offer = title_words[0]
 
             if total_offer.isdigit():
                 total_offer = int(total_offer)
