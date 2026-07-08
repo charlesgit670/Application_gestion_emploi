@@ -4,11 +4,12 @@ import hashlib
 
 class JobFinder:
 
-    def formatData(self, plateforme, list_title, list_content, list_company, list_link, list_datetime):
+    def formatData(self, platform, list_title, list_content, list_company, list_link, list_datetime):
         def generate_hash(text):
             return hashlib.sha256(text.encode('utf-8')).hexdigest()
 
         data = {
+            "platform": platform,
             "title": list_title,
             "content": list_content,
             "company": list_company,
@@ -21,10 +22,10 @@ class JobFinder:
             "comment": "",
             "score": -1,
             "custom_profile": "",
-            "hash": [generate_hash(plateforme + title + company + content) for title, content, company, datetime in zip(list_title, list_content, list_company, list_datetime)]
+            "hash": [generate_hash(platform + title + company + content) for title, content, company, datetime in zip(list_title, list_content, list_company, list_datetime)]
         }
         df = pd.DataFrame(data=data)
-        if plateforme == "apec":
+        if platform == "apec":
             df["date"] = pd.to_datetime(df["date"], dayfirst=True).dt.date
         else:
             df["date"] = pd.to_datetime(df["date"]).dt.date

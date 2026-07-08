@@ -3,11 +3,13 @@ import os
 import json
 import time
 from datetime import datetime
+import asyncio
 import shutil
 from openai import OpenAI
 from mistralai.client import Mistral
 from tqdm import tqdm
 from enum import Enum
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from scraping.FranceTravail import FranceTravail
 from scraping.HelloWork import HelloWork
@@ -15,11 +17,55 @@ from scraping.WelcomeToTheJungle import WelcomeToTheJungle
 from scraping.Apec import Apec
 from scraping.Linkedin import Linkedin
 from scraping.ServicePublic import ServicePublic
-from scraping.utils import measure_time, add_LLM_comment, is_language_allowed, add_LLM_comment_and_track_progress
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from scraping.utils import add_LLM_comment, is_language_allowed, add_LLM_comment_and_track_progress
+from JobColumns import JobColumns
 
 CONFIG_FILE = "config.json"
 DATA_FILE = "data/job.csv"
+
+DEFAULT_CONFIG = {
+    "keywords": [],
+    "url": {
+        "wttj": "",
+        "apec": "",
+        "linkedin": "",
+        "sp": ""
+    },
+    "launch_scrap": {
+        "wttj": False,
+        "apec": False,
+        "linkedin": False,
+        "sp": False,
+        "hw": False,
+        "ft": False
+    },
+    "keyword_mode": {
+        "wttj": "one_by_one",
+        "apec": "or",
+        "linkedin": "or",
+        "sp": "one_by_one",
+        "hw": "one_by_one",
+        "ft": "one_by_one"
+    },
+    "filter_day_scrap": 7,
+    "language_filter": {
+        "fr": True,
+        "en":  False,
+        "autre": False
+    },
+    "use_multithreading": False,
+    "use_llm": False,
+    "llm": {
+        "provider": "Local",
+        "gpt_api_key": "",
+        "mistral_api_key": "",
+        "generate_score": False,
+        "prompt_score": "",
+        "generate_custom_profile": False,
+        "prompt_custom_profile": "",
+        "cv": ""
+    }
+}
 
 
 class Platform(Enum):
@@ -68,60 +114,24 @@ def validate_scraping_config(config):
     return True
 
 
+def _backfill_defaults(config, defaults):
+    """Ajoute récursivement les clés manquantes d'un config.json existant (ex: keyword_mode
+    absent d'un fichier sauvegardé avant l'ajout de cette fonctionnalité), sans écraser les
+    valeurs déjà présentes."""
+    for key, default_value in defaults.items():
+        if key not in config:
+            config[key] = default_value
+        elif isinstance(default_value, dict) and isinstance(config[key], dict):
+            _backfill_defaults(config[key], default_value)
+    return config
+
 def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            config = json.load(f)
+        return _backfill_defaults(config, DEFAULT_CONFIG)
     else:
-        return {
-            "keywords": [],
-            "url": {
-                "wttj": "",
-                "apec": "",
-                "linkedin": "",
-                "sp": ""
-            },
-            "launch_scrap": {
-                "wttj": False,
-                "apec": False,
-                "linkedin": False,
-                "sp": False,
-                "hw": False,
-                "ft": False
-            },
-            "keyword_mode": {
-                "wttj": "one_by_one",
-                "apec": "or",
-                "linkedin": "or",
-                "sp": "all",
-                "hw": "one_by_one",
-                "ft": "one_by_one"
-            },
-            "filter_day_scrap": 7,
-            "language_filter": {
-                "fr": True,
-                "en":  False,
-                "autre": False
-            },
-            "use_multithreading": False,
-            "use_llm": False,
-            "pre_filter": {
-                "enabled": false,
-                "blacklist": [],
-                "whitelist": []
-            },
-            "llm": {
-                "provider": "Local",
-                "gpt_api_key": "",
-                "mistral_api_key": "",
-                "generate_score": False,
-                "prompt_score": "",
-                "generate_custom_profile": False,
-                "prompt_custom_profile": "",
-                "cv": ""
-            }
-        }
-
+        return _backfill_defaults({}, DEFAULT_CONFIG)
 
 def get_store_data():
     backup_dir = "data/backup/"
@@ -134,9 +144,10 @@ def get_store_data():
             return pd.read_csv(DATA_FILE, sep=";", encoding="utf-8")
         except Exception:
             pass
-    return pd.DataFrame(columns=["title", "content", "company", "link", "date", "is_read",
-                                 "is_apply", "is_refused", "is_good_offer", "comment",
-                                 "score", "custom_profile", "hash"])
+    return pd.DataFrame(columns=[JobColumns.TITLE, JobColumns.CONTENT, JobColumns.COMPANY, JobColumns.LINK,
+        JobColumns.PLATFORM, JobColumns.DATE, JobColumns.IS_READ, JobColumns.IS_APPLY,
+        JobColumns.IS_REFUSED, JobColumns.IS_GOOD_OFFER, JobColumns.COMMENT,
+        JobColumns.SCORE, JobColumns.CUSTOM_PROFILE, JobColumns.DAYS_DIFF])
 
 
 def get_all_job(progress_dict, all_platforms, is_multiproc):
@@ -283,11 +294,11 @@ async def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config
     stored_links = set(stored_df['link'].dropna().values)
 
     # Filtrage initial des nouvelles offres uniques
-    valid_rows = []
+    new_rows = []
     for _, new_row in new_df.iterrows():
         if new_row['hash'] not in stored_hashes and new_row['link'] not in stored_links:
             if all(language_filter.values()) or is_language_allowed(language_filter, str(new_row['content'])):
-                valid_rows.append(new_row)
+                new_rows.append(new_row)
 
     total_new = len(new_rows)
 

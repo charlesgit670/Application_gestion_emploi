@@ -1,0 +1,17 @@
+# --- AJOUT : Typage et centralisation des colonnes pour éviter les fautes de frappe ---
+class JobColumns:
+    PLATFORM = "platform"
+    TITLE = "title"
+    CONTENT = "content"
+    COMPANY = "company"
+    LINK = "link"
+    DATE = "date"
+    IS_READ = "is_read"
+    IS_APPLY = "is_apply"
+    IS_REFUSED = "is_refused"
+    IS_GOOD_OFFER = "is_good_offer"
+    COMMENT = "comment"
+    SCORE = "score"
+    CUSTOM_PROFILE = "custom_profile"
+    DAYS_DIFF = "days_diff"
+    HASH = "hash"

@@ -152,6 +152,7 @@ async def add_LLM_comment(client_LLM, llm_config, row):
 
             response = generate(
                 model="gemma4:26b",
+                think=False,
                 options={"temperature": 0.1},
                 format=format_spec,
                 prompt=score_prompt,
@@ -214,7 +215,8 @@ async def add_LLM_comment_and_track_progress(client, llm_config, row, i, total, 
 async def add_custom_cv_profile(client_LLM, llm_config, row):
     if llm_config["provider"] == "Local":
         response = generate(
-            model="gemma3:12b",
+            model="gemma4:26b",
+            think=False,
             options={
                 "temperature": 0.3,
             },
