@@ -37,6 +37,7 @@ class ServicePublic(JobFinder):
     @measure_time
     def getJob(self, update_callback=None):
         all_jobs = []
+        seen_links = set()
         for url in self.build_urls():
             # On récupère le nombre de page total à scrap pour chaque URL keyword
             res = self.get_content(url)
@@ -54,24 +55,37 @@ class ServicePublic(JobFinder):
                 soup = BeautifulSoup(res.text, 'html.parser')
                 offers = soup.select("li.fr-col-12.item")
                 for num, offer in enumerate(offers):
-                    job_link = offer.select_one("a.is-same-domain")["href"]
-                    job_title = offer.select_one("a.is-same-domain").get_text(strip=True)
+                    link_elem = offer.select_one("a.is-same-domain")
+                    date_elem = offer.select_one("li.fr-icon-calendar-line")
+                    if not link_elem or not date_elem:
+                        continue
+                    job_link = link_elem["href"]
+                    job_title = link_elem.get_text(strip=True)
                     try:
                         job_ministere = offer.select_one("img.fr-responsive-img").get("alt")
                     except Exception:
-                        job_ministere = offer.select_one("div.fr-responsive-img").get_text(strip=True)
-                    job_datetime = self.parse_date(offer.select_one("li.fr-icon-calendar-line").get_text(strip=True))
+                        ministere_elem = offer.select_one("div.fr-responsive-img")
+                        job_ministere = ministere_elem.get_text(strip=True) if ministere_elem else "Non spécifié"
+                    job_datetime = self.parse_date(date_elem.get_text(strip=True))
                     all_jobs.append((job_title, job_ministere, job_link, job_datetime))
+        # Elimination des doublons
+        seen_links = set()
+        unique_jobs = []
+        for job in all_jobs:
+            link = job[2]
+            if link not in seen_links:
+                unique_jobs.append(job)
+                seen_links.add(link)
 
         # Récupérer le contenu de toutes les fiches de poste
-        print(f"Nombre de fiche de poste du Service Public récupéré {len(all_jobs)}")
+        print(f"Nombre de fiche de poste du Service Public récupéré {len(unique_jobs)}")
         list_title = []
         list_content = []
         list_company = []
         list_link = []
         list_datetime = []
-        total = len(all_jobs)
-        for i, (title, comp, link, datetime) in enumerate(all_jobs):
+        total = len(unique_jobs)
+        for i, (title, comp, link, datetime) in enumerate(unique_jobs):
             res = self.get_content(link)
             soup = BeautifulSoup(res.text, 'html.parser')
             target_div = soup.find(
@@ -96,6 +110,7 @@ class ServicePublic(JobFinder):
             print(f"Service Public {i}/{total}")
             if update_callback:
                 update_callback(i + 1, total)
+
 
         df = self.formatData("sp", list_title, list_content, list_company, list_link, list_datetime)
         df = df.drop_duplicates(subset="hash", keep="first")
