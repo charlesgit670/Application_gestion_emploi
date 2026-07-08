@@ -14,7 +14,9 @@ build_exe_options = {
                  "selenium",
                  "webdriver_manager",
                  "streamlit",
-                 "dateparser"],
+                 "dateparser",
+                 "aiolimiter",
+                 "langdetect"],
     "include_files": [
         "README.md",
         "config.json",

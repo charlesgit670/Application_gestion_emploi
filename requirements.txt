@@ -8,6 +8,8 @@ requests
 beautifulsoup4
 selenium
 webdriver-manager
+aiolimiter
+langdetect
 streamlit
 dateparser
 langdetect
