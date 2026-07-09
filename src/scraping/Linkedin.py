@@ -67,13 +67,14 @@ class Linkedin(JobFinder):
         all_job_id = []
         all_job_link = []
         all_job_datetime = []
+        seen_job_ids = set()
 
-        total_pagination_steps = 0
-        completed_steps = 0
-
+        # --- PHASE 1 : Récupération rapide de tous les Job IDs ---
         for search_url in self.build_urls():
-            # Récupérer le nombre total d'offre pour chaque URL de recherche
             res = self.get_content(search_url)
+            if res is None:
+                continue
+
             soup = BeautifulSoup(res.text, 'html.parser')
             span = soup.find('span', class_='results-context-header__job-count')
             if span is None:
@@ -82,7 +83,8 @@ class Linkedin(JobFinder):
 
             total_offer = self._parse_total_offer(span.get_text())
             if not total_offer:
-                print(f"Compteur d'offres LinkedIn illisible ('{span.get_text(strip=True)}'), recherche ignorée: {search_url}")
+                print(
+                    f"Compteur d'offres LinkedIn illisible ('{span.get_text(strip=True)}'), recherche ignorée: {search_url}")
                 continue
 
             query_string = urlsplit(search_url).query
@@ -91,17 +93,13 @@ class Linkedin(JobFinder):
                 continue
 
             page_count = math.ceil(total_offer / 10)
-            total_pagination_steps += page_count
             job_id_api = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?" + query_string + "&start={}"
 
-            # Récupérer tous les job id
             for i in range(0, page_count):
                 res = self.get_content(job_id_api.format(i * 10))
                 if res is None:
-                    completed_steps += 1
-                    if update_callback:
-                        update_callback(completed_steps, total_pagination_steps + max(len(all_job_id), 1))
                     continue
+
                 soup = BeautifulSoup(res.text, 'html.parser')
                 alljobs_on_this_page = soup.find_all("li")
                 for job_on_this_page in alljobs_on_this_page:
@@ -111,8 +109,11 @@ class Linkedin(JobFinder):
 
                     jobid = self._extract_job_id_from_urn(base_card.get('data-entity-urn', ''))
                     if not jobid:
-                        print("Offre LinkedIn ignorée (job id absent/invalide).")
                         continue
+
+                    # --- VÉRIFICATION D'UNICITÉ IMMÉDIATE ---
+                    if jobid in seen_job_ids:
+                        continue  # Si l'ID a déjà été traité (via une autre recherche), on passe directement au suivant
 
                     link_tag = job_on_this_page.find("a")
                     joblink = link_tag.get("href", "") if link_tag else ""
@@ -122,26 +123,23 @@ class Linkedin(JobFinder):
                     time_tag = job_on_this_page.find("time")
                     jobDateTime = time_tag.get("datetime") if time_tag else None
                     if not jobDateTime:
-                        print("Date LinkedIn invalide, offre ignorée: datetime manquant")
                         continue
 
-                    # on filtre les offres trop ancienne
+                    # Filtrage des offres trop anciennes
                     date_limit = dt.now() - timedelta(days=self.filter_day_scrap)
                     job_datetime_obj = self._parse_job_datetime(jobDateTime)
                     if job_datetime_obj is None:
                         continue
 
-                    if job_datetime_obj >= date_limit and jobid not in all_job_id:
+                    if job_datetime_obj >= date_limit:
                         all_job_id.append(jobid)
                         all_job_link.append(joblink)
                         all_job_datetime.append(jobDateTime)
+                        seen_job_ids.add(jobid)  # <-- On enregistre l'ID comme "vu"
 
-                completed_steps += 1
-                if update_callback:
-                    update_callback(completed_steps, total_pagination_steps + max(len(all_job_id), 1))
-        print(f"Nombre de fiche de poste Linkedin récupéré {len(all_job_id)}")
+        print(f"Nombre de fiche de poste LinkedIn unique récupéré : {len(all_job_id)}")
 
-        # Récupérer le contenu de toutes les fiches de poste
+        # --- PHASE 2 : Scraping des détails (Phase longue) ---
         list_title = []
         list_content = []
         list_company = []
@@ -149,9 +147,9 @@ class Linkedin(JobFinder):
         list_datetime = all_job_datetime
 
         total = len(all_job_id)
-        total_steps = total_pagination_steps + max(total, 1)
+        denominateur = max(total, 1)
+
         for i, job_id in enumerate(all_job_id):
-        # for job_id in tqdm(all_job_id):
             try:
                 company, jobTitle, jobDescription = self.get_job_details(job_id)
                 list_title.append(jobTitle)
@@ -160,18 +158,16 @@ class Linkedin(JobFinder):
             except Exception as exc:
                 print(f"Détails LinkedIn ignorés pour {job_id}: {exc}")
                 if update_callback:
-                    update_callback(total_pagination_steps + i + 1, total_steps)
+                    update_callback(i + 1, denominateur)
                 continue
 
-            print(f"Linkedin {i}/{total}")
+            print(f"Linkedin {i + 1}/{total}")
             if update_callback:
-                update_callback(total_pagination_steps + i + 1, total_steps)
-
-        if update_callback:
-            update_callback(total_steps, total_steps)
+                update_callback(i + 1, denominateur)
 
         df = self.formatData("linkedin", list_title, list_content, list_company, list_link, list_datetime)
         df = df.drop_duplicates(subset="hash", keep="first")
+
         return df
 
     @backoff.on_exception(backoff.expo, (HTTPError, RequestException), giveup=lambda e: e.response is not None and e.response.status_code != 429)

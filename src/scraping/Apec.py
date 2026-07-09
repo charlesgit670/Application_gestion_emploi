@@ -69,7 +69,7 @@ class Apec(JobFinder):
             EC.presence_of_element_located((By.XPATH, "//div[@class='col-lg-8 border-L']"))
         )
         job_description = job_description_element.text
-        print(f"APEC {index}/{total}")
+        print(f"APEC {index + 1}/{total}")
         return (title, comp, link, datetime, job_description)
 
 

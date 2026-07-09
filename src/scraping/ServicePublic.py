@@ -107,7 +107,7 @@ class ServicePublic(JobFinder):
             list_link.append(link)
             list_datetime.append(datetime)
 
-            print(f"Service Public {i}/{total}")
+            print(f"Service Public {i + 1}/{total}")
             if update_callback:
                 update_callback(i + 1, total)
 

@@ -61,7 +61,7 @@ class WelcomeToTheJungle(JobFinder):
                         EC.presence_of_element_located((By.XPATH, "//div[@id='the-position-section']"))
                     )
                     job_description = description_div.text
-                    print(f"WTTF {index}/{total}")
+                    print(f"WTTF {index + 1}/{total}")
                     return (title, comp, link, datetime, job_description)
                 except Exception as e:
                     if attempt < 2:

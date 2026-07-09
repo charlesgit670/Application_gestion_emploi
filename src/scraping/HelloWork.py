@@ -141,7 +141,7 @@ class HelloWork(JobFinder):
             list_link.append(link)
             list_datetime.append(date)
 
-            print(f"HelloWork {i}/{total}")
+            print(f"HelloWork {i + 1}/{total}")
             if update_callback:
                 update_callback(i + 1, total)
 

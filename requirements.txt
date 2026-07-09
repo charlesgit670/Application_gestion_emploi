@@ -13,3 +13,4 @@ langdetect
 streamlit
 dateparser
 langdetect
+plotly
