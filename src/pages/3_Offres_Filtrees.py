@@ -13,6 +13,9 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     df = st.session_state["df"]
     bad_jobs = df[(df[JobColumns.IS_READ] == 0) & (df[JobColumns.IS_GOOD_OFFER] == 0)].reset_index(drop=True)
 
+    if JobColumns.DATE in bad_jobs.columns:
+        bad_jobs = bad_jobs.sort_values(by=[JobColumns.DATE, JobColumns.SCORE], ascending=False).reset_index(drop=True)
+
     # Fonction de traitement propre pour la réhabilitation
     def handle_restore(main_df, current_job):
         main_df.loc[main_df[JobColumns.LINK] == current_job[JobColumns.LINK], JobColumns.IS_GOOD_OFFER] = 1
@@ -23,6 +26,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         empty_message="Aucune offre n'a été filtrée négativement par le LLM.",
         total_label="Total d'offres filtrées :",
         expander_title_fn=lambda job: (
+            f"(Il y a **{job[JobColumns.DAYS_DIFF]}** jours)"
             f"**[{int(job[JobColumns.SCORE]) if pd.notna(job[JobColumns.SCORE]) else 0}%]** "
             f"{job[JobColumns.TITLE]} — *{job[JobColumns.COMPANY]}*"
         ),

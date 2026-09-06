@@ -89,24 +89,31 @@ def _encode_keyword(value, encode_mode):
         return urllib.parse.quote(value, safe="")
     raise ValueError(f"encode_mode inconnu: {encode_mode}")
 
-def build_keyword_urls(base_url, keywords, mode="one_by_one", encode_mode="query", quote_terms_for_or=False):
-    if "{keyword}" not in base_url:
-        raise ValueError("Le template d'URL doit contenir {keyword}.")
+def build_keyword_terms(keywords, mode="one_by_one", quote_terms_for_or=False):
+    """Construit la ou les chaînes de mots clés (non encodées) selon le mode choisi.
+    """
     clean_keywords = normalize_keywords(keywords)
     if not clean_keywords:
         return []
     if mode == "one_by_one":
-        terms = clean_keywords
+        return clean_keywords
     elif mode == "or":
         if quote_terms_for_or:
             joined = " OR ".join([f"\"{kw}\"" for kw in clean_keywords])
         else:
             joined = " OR ".join(clean_keywords)
-        terms = [joined]
+        return [joined]
     elif mode == "all":
-        terms = [" ".join(clean_keywords)]
+        return [" ".join(clean_keywords)]
     else:
         raise ValueError(f"keyword mode inconnu: {mode}")
+
+def build_keyword_urls(base_url, keywords, mode="one_by_one", encode_mode="query", quote_terms_for_or=False):
+    if "{keyword}" not in base_url:
+        raise ValueError("Le template d'URL doit contenir {keyword}.")
+    terms = build_keyword_terms(keywords, mode=mode, quote_terms_for_or=quote_terms_for_or)
+    if not terms:
+        return []
     return [base_url.format(keyword=_encode_keyword(term, encode_mode)) for term in terms]
 
 # Throttle proactif dédié à ChatGPT (indépendant de rate_limiter, réservé à Mistral) :

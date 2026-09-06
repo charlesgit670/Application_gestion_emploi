@@ -65,7 +65,7 @@ if not st.session_state["df"].empty:
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Total d'offres collectées", total_offres)
-    col2.metric("Nouvelles offres à analyser", a_lire, delta=f"{a_lire} urgentes", delta_color="inverse")
+    col2.metric("Nouvelles offres à analyser", a_lire)
     col3.metric("Candidatures en cours", en_cours)
 
     st.write("---")

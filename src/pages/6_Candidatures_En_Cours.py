@@ -16,6 +16,8 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     df = st.session_state["df"]
     applied_jobs = df[(df[JobColumns.IS_APPLY] == 1) & (df[JobColumns.IS_REFUSED] == 0)].reset_index(drop=True)
 
+    if JobColumns.DATE in applied_jobs.columns:
+        applied_jobs = applied_jobs.sort_values(by=[JobColumns.DATE], ascending=False).reset_index(drop=True)
 
     # --- FONCTIONS DE TRAITEMENT CORRECTES ET SECURISEES ---
 
@@ -45,7 +47,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         filtered_df=applied_jobs,
         empty_message="Vous n'avez aucune candidature active listée. C'est le moment d'envoyer des CV !",
         total_label="Suivi de **{}** candidature(s) active(s)",
-        expander_title_fn=lambda job: f"📩 {job[JobColumns.TITLE]} — {job[JobColumns.COMPANY]}",
+        expander_title_fn=lambda job: f"📩 (Il y a **{job[JobColumns.DAYS_DIFF]}** jours) {job[JobColumns.TITLE]} — {job[JobColumns.COMPANY]}",
         button_configs=[
             {
                 "label": "🗑️ Annuler",

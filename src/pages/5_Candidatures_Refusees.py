@@ -12,6 +12,9 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     df = st.session_state["df"]
     refused_jobs = df[df[JobColumns.IS_REFUSED] == 1].reset_index(drop=True)
 
+    if JobColumns.DATE in refused_jobs.columns:
+        refused_jobs = refused_jobs.sort_values(by=[JobColumns.DATE], ascending=False).reset_index(drop=True)
+
 
     # CORRECTION SÉCURISÉE ET EXPLICITE : Évite les NaN et remet les bons statuts
     def handle_reactivate(main_df, current_job):
@@ -29,7 +32,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         filtered_df=refused_jobs,
         empty_message="Aucun refus à déplorer pour le moment. Gardez le cap ! 👍",
         total_label="Total de refus listés :",
-        expander_title_fn=lambda job: f"🚫 {job[JobColumns.TITLE]} chez {job[JobColumns.COMPANY]}",
+        expander_title_fn=lambda job: f"🚫 (Il y a **{job[JobColumns.DAYS_DIFF]}** jours) {job[JobColumns.TITLE]} chez {job[JobColumns.COMPANY]}",
         button_config={
             "label": "🔄 Réactiver",
             "key_prefix": "unrefuse_",

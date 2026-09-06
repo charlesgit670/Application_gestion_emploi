@@ -13,6 +13,8 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     df = st.session_state["df"]
     read_jobs = df[(df[JobColumns.IS_READ] == 1) & (df[JobColumns.IS_APPLY] == 0)].reset_index(drop=True)
 
+    if JobColumns.DATE in read_jobs.columns:
+        read_jobs = read_jobs.sort_values(by=[JobColumns.DATE], ascending=False).reset_index(drop=True)
 
     # CORRECTION ROBUSTE : Assignation colonne par colonne pour bloquer les NaN
     def handle_reset(main_df, current_job):
@@ -28,7 +30,7 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         filtered_df=read_jobs,
         empty_message="Aucun historique disponible.",
         total_label="Total d'offres lues :",
-        expander_title_fn=lambda job: f"{job[JobColumns.TITLE]} | {job[JobColumns.COMPANY]}",
+        expander_title_fn=lambda job: f"(Il y a **{job[JobColumns.DAYS_DIFF]}** jours) {job[JobColumns.TITLE]} | {job[JobColumns.COMPANY]}",
         button_config={
             "label": "🔄 Réétudier",
             "key_prefix": "reset_",
