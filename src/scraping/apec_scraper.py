@@ -34,6 +34,65 @@ class ApecScraper(JobFinder):
         self.project_root = project_root
         self._load_config()
 
+    def _fetch_geo_coordinates(self, page):
+        """Récupère les coordonnées GPS du lieu en interrogeant la première offre pivot APEC"""
+        if not self.lieux:
+            return
+
+        lieu_param = str(self.lieux[0])
+
+        try:
+            geo_info = page.evaluate(f"""
+                async () => {{
+                    const lieuQuery = {json.dumps(lieu_param)};
+
+                    // Payload minimal pour récupérer au moins 1 offre située dans le lieu cible
+                    const payloadPivot = {{
+                        "lieux": [lieuQuery],
+                        "typeClient": "CADRE",
+                        "sorts": [{{"type": "DATE", "direction": "DESCENDING"}}],
+                        "pagination": {{"range": 1, "startIndex": 0}},
+                        "activeFiltre": true,
+                    }};
+
+                    const response = await fetch('https://www.apec.fr/cms/webservices/rechercheOffre', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify(payloadPivot)
+                    }});
+
+                    if (!response.ok) return null;
+
+                    const data = await response.json();
+
+                    // Extraction depuis le premier résultat de la liste
+                    if (data.resultats && data.resultats.length > 0) {{
+                        const premiereOffre = data.resultats[0];
+                        if (premiereOffre.latitude && premiereOffre.longitude) {{
+                            return {{
+                                latitude: parseFloat(premiereOffre.latitude),
+                                longitude: parseFloat(premiereOffre.longitude),
+                            }};
+                        }}
+                    }}
+
+                    return null;
+                }}
+            """)
+
+            if geo_info:
+                self.latitude = geo_info.get('latitude')
+                self.longitude = geo_info.get('longitude')
+
+                print(f"Coordonnées pivot récupérées via APEC -> Lat: {self.latitude}, Lon: {self.longitude}")
+            else:
+                print(f"⚠ Aucune offre trouvée pour extraire la géolocalisation de : {lieu_param}")
+
+        except Exception as e:
+            print(f"Erreur lors de la récupération des coordonnées pivot APEC : {e}")
+
     def _load_config(self):
         """Charge la configuration depuis config.json"""
         config_path = os.path.join(self.project_root, 'config.json')
@@ -48,11 +107,13 @@ class ApecScraper(JobFinder):
         parsed = urllib.parse.urlparse(config['url']['apec'])
         params = urllib.parse.parse_qs(parsed.query)
 
-        self.lieux = [int(v) if v.isdigit() else v for v in params.get("lieux", [])]
-        self.types_convention = [int(v) if v.isdigit() else v for v in params.get("typesConvention", [])]
-        self.types_contrat = [int(v) if v.isdigit() else v for v in params.get("typesContrat", [])]
+        self.lieux = [str(v) if v.isdigit() else v for v in params.get("lieux", [])]
+        self.types_convention = [str(v) if v.isdigit() else v for v in params.get("typesConvention", [])]
+        self.types_contrat = [str(v) if v.isdigit() else v for v in params.get("typesContrat", [])]
         distance_values = params.get("distance", ["0"])
         self.distance = int(distance_values[0]) if distance_values[0].isdigit() else 0
+        self.latitude = None
+        self.longitude = None
 
     def _build_payload(self, search_terms, start_index):
         """Construit le payload pour la recherche"""
@@ -62,13 +123,19 @@ class ApecScraper(JobFinder):
             'sorts': [{'type': 'DATE', 'direction': 'DESCENDING'}],
             'pagination': {'range': self.PAGE_SIZE, 'startIndex': start_index},
             'activeFiltre': True,
-            'pointGeolocDeReference': {'distance': self.distance},
             'motsCles': search_terms,
         }
         if self.types_contrat:
             payload['typesContrat'] = self.types_contrat
         if self.types_convention:
             payload['typesConvention'] = self.types_convention
+
+        if self.distance > 0 and self.latitude and self.longitude:
+            payload['pointGeolocDeReference'] = {
+                'distance': str(self.distance),
+                'latitude': self.latitude,
+                'longitude': self.longitude,
+            }
         return payload
 
     @staticmethod
@@ -145,6 +212,9 @@ class ApecScraper(JobFinder):
                 print("Session initialisée")
             except:
                 print("Pas de captcha ou déjà résolu")
+
+            # Récupération des coordonnées géographiques
+            self._fetch_geo_coordinates(page)
 
             # Recherche
             for search_terms in mots_cles_list:
@@ -254,7 +324,7 @@ class ApecScraper(JobFinder):
                     # Mettre à jour la progression
                     update_progress_file(self.project_root, i, total)
 
-                    print(f"[{i + 1}/{total}]")
+                    print(f"APEC {i + 1}/{total}")
 
                     url = f"{self.DETAIL_URL}?numeroOffre={job['numeroOffre']}"
                     page.goto(url, wait_until='domcontentloaded')
