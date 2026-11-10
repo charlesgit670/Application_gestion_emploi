@@ -99,11 +99,27 @@ class JobStore:
             conn.close()
 
     # ------------------------------------------------------------------ lecture
-    def load(self) -> pd.DataFrame:
-        """Toutes les offres, avec la colonne calculée `days_old` (âge en jours)."""
-        with self._connect() as conn:
-            df = pd.read_sql("SELECT * FROM jobs", conn)
+    def load(self, with_content: bool = True) -> pd.DataFrame:
+        """Toutes les offres, avec la colonne calculée `days_old` (âge en jours).
 
+        with_content=False ne charge pas les descriptions (l'essentiel du volume) :
+        bien plus rapide pour les listes et les statistiques de l'interface.
+        """
+        with self._connect() as conn:
+            all_columns = [row[1] for row in conn.execute("PRAGMA table_info(jobs)")]
+            selected = [c for c in all_columns if with_content or c != Col.CONTENT]
+            df = pd.read_sql(f"SELECT {', '.join(selected)} FROM jobs", conn)
+        return self._prepare(df)
+
+    def get(self, job_id: int) -> dict | None:
+        """Une offre complète (avec sa description), sous forme de dictionnaire."""
+        with self._connect() as conn:
+            df = pd.read_sql(f"SELECT * FROM jobs WHERE {Col.ID} = ?", conn, params=(int(job_id),))
+        return None if df.empty else self._prepare(df).iloc[0].to_dict()
+
+    @staticmethod
+    def _prepare(df: pd.DataFrame) -> pd.DataFrame:
+        """Types des colonnes (dates, entiers) et âge de l'offre en jours."""
         df[Col.PUBLISHED_ON] = pd.to_datetime(df[Col.PUBLISHED_ON], errors="coerce")
         df[Col.APPLIED_ON] = pd.to_datetime(df[Col.APPLIED_ON], errors="coerce")
         df[Col.SCORE] = df[Col.SCORE].astype("Int64")  # entier acceptant les valeurs vides
@@ -194,6 +210,16 @@ class JobStore:
         with self._connect() as conn:
             conn.execute(f"UPDATE jobs SET {Col.NOTES} = ? WHERE {Col.ID} = ?", (notes, int(job_id)))
 
+    def log_follow_up(self, job_id: int) -> None:
+        """Note une relance : ligne datée ajoutée aux notes, compteur de relance remis à zéro."""
+        line = f"Relance le {date.today():%d/%m/%Y}"
+        with self._connect() as conn:
+            conn.execute(
+                f"UPDATE jobs SET {Col.NOTES} = TRIM(COALESCE({Col.NOTES}, '') || char(10) || ?), "
+                f"{Col.STATUS_CHANGED_AT} = ? WHERE {Col.ID} = ?",
+                (line, _now(), int(job_id)),
+            )
+
     def set_ai_result(self, job_id: int, score: int | None, comment: str) -> None:
         """Enregistre le résultat de l'évaluation LLM d'une offre."""
         with self._connect() as conn:
@@ -207,8 +233,9 @@ class JobStore:
         """Copie horodatée de la base dans data/backup/ (avant un scraping par exemple)."""
         if not self.db_path.exists():
             return None
-        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-        target = BACKUP_DIR / f"jobs_{datetime.now():%Y-%m-%d_%H-%M-%S}.db"
+        backup_dir = self.db_path.parent / BACKUP_DIR.name  # à côté de la base concernée
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        target = backup_dir / f"jobs_{datetime.now():%Y-%m-%d_%H-%M-%S}.db"
         with self._connect() as conn:
             conn.execute("PRAGMA wal_checkpoint(FULL)")  # tout écrire dans le fichier principal
         shutil.copy(self.db_path, target)

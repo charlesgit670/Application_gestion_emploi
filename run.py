@@ -1,21 +1,22 @@
+"""Lance JobFinder :  python run.py
+
+L'application s'ouvre dans un onglet du navigateur (http://localhost:8080).
+"""
 import os
 import sys
-import streamlit.web.cli as stcli
+from pathlib import Path
 
-# force l'utilisation de utf8 pour les pc chinois
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT / "src"))
+
+# Sortie console en UTF-8 (accents corrects sur toutes les configurations Windows)
 os.environ["PYTHONUTF8"] = "1"
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
+# Préférences de l'interface (mode sombre...) rangées avec les données, hors du dépôt git
+os.environ.setdefault("NICEGUI_STORAGE_PATH", str(ROOT / "data" / ".nicegui"))
 
-def resolve_path(path: str) -> str:
-    resolved_path = os.path.abspath(os.path.join(os.getcwd(), path))
-    return resolved_path
+from jobfinder.ui.main import main  # noqa: E402  (après la configuration du chemin)
 
-if __name__ == "__main__":
-    sys.argv = [
-        "streamlit",
-        "run",
-        resolve_path("src/app.py"),
-        "--global.developmentMode=false",
-        "--server.headless=true",
-    ]
-    sys.exit(stcli.main())
+if __name__ in {"__main__", "__mp_main__"}:
+    main()

@@ -29,19 +29,24 @@ Actuellement, les plateformes sont supportées :
 ## 🚀 Lancer l'application
 
 1. Télécharger le projet.  
-2. Installer les dépendances via le fichier `requirements.txt` dans votre environnement Python.  
-3. Lancer l’application **Streamlit** depuis la racine du projet :  
+2. Installer les dépendances :
 
    ```bash
-   streamlit run src/app.py
+   pip install -r requirements.txt
+   playwright install firefox
    ```
 
-4. (Optionnel) Créer un exécutable pour faciliter le lancement :  
+3. Lancer l'application depuis la racine du projet :
 
    ```bash
-   python setup.py build
+   python run.py
    ```
-   Cela génère un dossier `build` contenant `run.exe`, qui démarre directement le serveur Streamlit.
+
+   L'interface (NiceGUI) s'ouvre dans un onglet du navigateur : http://localhost:8080.
+   Au premier lancement, l'ancien fichier `data/job.csv` est importé automatiquement dans
+   la base `data/jobs.db` (le CSV est conservé tel quel).
+
+4. Lancer les tests : `pytest`
 
 ---
 

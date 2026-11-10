@@ -18,9 +18,8 @@ aiolimiter
 langdetect
 
 # --- Interface ---
-streamlit
+nicegui
 plotly
-tqdm
 
 # --- Tests ---
 pytest

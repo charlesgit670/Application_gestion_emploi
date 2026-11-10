@@ -67,3 +67,12 @@ def test_notes(store):
     job_id = int(store.load()[Col.ID].iloc[0])
     store.set_notes(job_id, "Relancé par mail")
     assert store.load().iloc[0][Col.NOTES] == "Relancé par mail"
+
+
+def test_chargement_leger_et_lecture_d_une_offre(store):
+    store.insert(make_jobs(2))
+    light = store.load(with_content=False)
+    assert Col.CONTENT not in light.columns and len(light) == 2
+    job = store.get(int(light[Col.ID].iloc[0]))
+    assert job[Col.CONTENT] == "Description"
+    assert store.get(999) is None
