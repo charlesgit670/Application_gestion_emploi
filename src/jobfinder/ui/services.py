@@ -65,12 +65,47 @@ def counts(df: pd.DataFrame, config: AppConfig) -> dict[str, int]:
         "rejected": len(offers_rejected_by_ai(df, threshold)),
         "read": int((status == Status.LUE).sum()),
         "applied": int((status == Status.POSTULEE).sum()),
-        "interview": int((status == Status.ENTRETIEN).sum()),
+        "interview": int((status == Status.ENTRETIEN).sum()),  # candidatures au stade entretien
         "refused": int((status == Status.REFUSEE).sum()),
         "active": int(status.isin(ACTIVE_APPLICATION).sum()),
         "follow_up": len(needs_follow_up(df, config.follow_up_days)),
         "total": len(df),
     }
+
+
+def interviews_done(df: pd.DataFrame) -> pd.Series:
+    """Entretiens réalisés par offre. Une offre au statut ENTRETIEN en compte au moins un."""
+    return df[Col.INTERVIEW_COUNT].where(df[Col.STATUS] != Status.ENTRETIEN, df[Col.INTERVIEW_COUNT].clip(lower=1))
+
+
+def application_stats(df: pd.DataFrame) -> dict[str, float]:
+    """Statistiques de candidature : volume, entretiens, taux d'entretien, refus."""
+    interviews = interviews_done(df)
+    sent = df[Col.STATUS].isin([Status.POSTULEE, Status.ENTRETIEN, Status.REFUSEE]) | (interviews > 0)
+    with_interview = interviews > 0
+    refused = df[Col.STATUS] == Status.REFUSEE
+    return {
+        "sent": int(sent.sum()),
+        "with_interview": int(with_interview.sum()),
+        "interview_rate": with_interview.sum() / sent.sum() if sent.sum() else 0.0,
+        "interviews": int(interviews.sum()),
+        "refused": int(refused.sum()),
+        "refused_after_interview": int((refused & with_interview).sum()),
+        "waiting": int((df[Col.STATUS] == Status.POSTULEE).sum()),
+    }
+
+
+def relevance_by_platform(df: pd.DataFrame, threshold: int) -> pd.DataFrame:
+    """Part des offres évaluées jugées pertinentes (score >= seuil), par plateforme.
+
+    Les offres non évaluées sont exclues du calcul ; une offre réhabilitée compte comme pertinente.
+    """
+    evaluated = df[df[Col.SCORE].notna()]
+    relevant = (evaluated[Col.SCORE] >= threshold) | (evaluated[Col.FORCED_RELEVANT] == 1)
+    table = pd.DataFrame({"evaluated": evaluated.groupby(Col.PLATFORM).size(),
+                          "relevant": relevant.groupby(evaluated[Col.PLATFORM]).sum()}).fillna(0)
+    table["percent"] = 100 * table["relevant"] / table["evaluated"]
+    return table.sort_values("percent")
 
 
 def load_jobs() -> pd.DataFrame:

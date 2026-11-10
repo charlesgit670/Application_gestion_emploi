@@ -76,3 +76,39 @@ def test_chargement_leger_et_lecture_d_une_offre(store):
     job = store.get(int(light[Col.ID].iloc[0]))
     assert job[Col.CONTENT] == "Description"
     assert store.get(999) is None
+
+
+def test_mise_a_niveau_d_une_base_existante(tmp_path):
+    """Une base créée avant l'ajout de interview_count reçoit la colonne sans perte."""
+    import sqlite3
+    from jobfinder.storage import JobStore
+    db = tmp_path / "old.db"
+    with sqlite3.connect(db) as conn:
+        conn.execute("CREATE TABLE jobs (id INTEGER PRIMARY KEY, hash TEXT UNIQUE NOT NULL, "
+                     "link TEXT UNIQUE NOT NULL, platform TEXT NOT NULL, title TEXT, company TEXT, "
+                     "content TEXT, published_on TEXT, scraped_at TEXT NOT NULL, score INTEGER, "
+                     "ai_comment TEXT, forced_relevant INTEGER NOT NULL DEFAULT 0, "
+                     "status TEXT NOT NULL DEFAULT 'nouvelle', status_changed_at TEXT, applied_on TEXT, notes TEXT)")
+        conn.execute("INSERT INTO jobs (hash, link, platform, scraped_at) VALUES ('h', 'l', 'hw', 'x')")
+    store = JobStore(db)
+    job = store.load().iloc[0]
+    assert job[Col.INTERVIEW_COUNT] == 0 and job[Col.HASH] == "h"
+
+
+def test_entretiens(store):
+    store.insert(make_jobs(1))
+    job_id = int(store.load()[Col.ID].iloc[0])
+    store.set_status([job_id], Status.POSTULEE)
+
+    assert store.add_interview(job_id) == 1
+    assert store.add_interview(job_id) == 2
+    job = store.get(job_id)
+    assert job[Col.STATUS] == Status.ENTRETIEN and "Entretien n°2" in job[Col.NOTES]
+
+    store.set_status([job_id], Status.REFUSEE)  # le nombre d'entretiens est conservé
+    assert store.get(job_id)[Col.INTERVIEW_COUNT] == 2
+
+    store.set_status([job_id], Status.ENTRETIEN)
+    assert store.remove_interview(job_id) == 1
+    assert store.remove_interview(job_id) == 0
+    assert store.get(job_id)[Col.STATUS] == Status.POSTULEE

@@ -39,3 +39,28 @@ def test_relance_apres_n_jours(store):
     late = services.needs_follow_up(store.load(), follow_up_days=10)
     assert list(late[Col.ID]) == [ids[1]]
     assert "Relance le" in store.get(ids[0])[Col.NOTES]
+
+
+def test_statistiques_de_candidature(store):
+    store.insert(make_jobs(5))
+    ids = store.load()[Col.ID].tolist()
+    store.set_status(ids[:4], Status.POSTULEE)   # 4 candidatures
+    store.add_interview(ids[0])
+    store.add_interview(ids[0])                  # 2 entretiens pour la 1re
+    store.add_interview(ids[1])
+    store.set_status([ids[1], ids[2]], Status.REFUSEE)
+
+    stats = services.application_stats(store.load())
+    assert stats["sent"] == 4
+    assert stats["with_interview"] == 2
+    assert stats["interview_rate"] == 0.5
+    assert stats["interviews"] == 3
+    assert stats["refused"] == 2 and stats["refused_after_interview"] == 1
+    assert stats["waiting"] == 1
+
+
+def test_pertinence_par_plateforme(store):
+    store.insert(make_jobs(4, platform="hw", score=[80, 20, 30, None]))
+    table = services.relevance_by_platform(store.load(), threshold=50)
+    assert table.loc["hw", "evaluated"] == 3      # la non évaluée est exclue
+    assert round(table.loc["hw", "percent"]) == 33

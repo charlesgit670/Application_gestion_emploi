@@ -35,12 +35,12 @@ def base_layout(fig: go.Figure, height: int = 300) -> go.Figure:
 
 
 def funnel_figure(df: pd.DataFrame, threshold: int) -> go.Figure:
-    applied = df[Col.STATUS].isin([Status.POSTULEE, Status.ENTRETIEN, Status.REFUSEE])
+    stats = services.application_stats(df)
     steps = {
         "Offres collectées": len(df),
         "Jugées pertinentes": int((~is_rejected_by_ai(df, threshold)).sum()),
-        "Candidatures": int(applied.sum()),
-        "Entretiens": int((df[Col.STATUS] == Status.ENTRETIEN).sum()),
+        "Candidatures": stats["sent"],
+        "Avec entretien": stats["with_interview"],
     }
     fig = go.Figure(go.Bar(
         x=list(steps.values()), y=list(steps.keys()), orientation="h",
@@ -74,6 +74,22 @@ def platform_figure(df: pd.DataFrame, threshold: int) -> go.Figure:
     return base_layout(fig)
 
 
+def relevance_figure(df: pd.DataFrame, threshold: int) -> go.Figure:
+    """Taux de pertinence IA par plateforme : une seule mesure, donc une seule couleur."""
+    table = services.relevance_by_platform(df, threshold)
+    labels = [PLATFORM_LABELS.get(k, k) for k in table.index]
+    fig = go.Figure(go.Bar(
+        x=table["percent"], y=labels, orientation="h",
+        marker=dict(color=BLUE, cornerradius=4),
+        text=[f"{p:.0f} %" for p in table["percent"]], textposition="outside",
+        customdata=table[["relevant", "evaluated"]].astype(int).values,
+        hovertemplate="%{y} : %{x:.1f} % (%{customdata[0]} / %{customdata[1]} offres évaluées)<extra></extra>",
+    ))
+    fig.update_xaxes(range=[0, max(table["percent"].max() * 1.2, 10)], ticksuffix=" %")
+    fig.update_yaxes(showgrid=False)
+    return base_layout(fig)
+
+
 def timeline_figure(df: pd.DataFrame) -> go.Figure:
     dated = df.dropna(subset=[Col.PUBLISHED_ON])
     weekly = dated.groupby(dated[Col.PUBLISHED_ON].dt.to_period("W").dt.start_time).size().tail(26)
@@ -91,6 +107,27 @@ def kpi_tile(label: str, value: int, icon: str, target: str, accent: str = "text
             ui.icon(icon)
             ui.label(label)
         ui.label(f"{value:,}".replace(",", " ")).classes(f"kpi-value {accent}")
+
+
+def application_stats_card(stats: dict) -> None:
+    """Chiffres clés des candidatures : volume, entretiens, taux d'entretien, refus."""
+    figures = [
+        ("Candidatures envoyées", str(stats["sent"]), "send"),
+        ("Avec au moins un entretien", str(stats["with_interview"]), "record_voice_over"),
+        ("Taux d'entretien", f"{stats['interview_rate']:.0%}".replace("%", " %"), "percent"),
+        ("Entretiens réalisés", str(stats["interviews"]), "event_available"),
+        ("Refus", f"{stats['refused']}  (dont {stats['refused_after_interview']} après entretien)", "block"),
+        ("En attente de réponse", str(stats["waiting"]), "hourglass_empty"),
+    ]
+    with ui.card().classes("w-full"):
+        ui.label("Suivi des candidatures").classes("text-subtitle1 font-medium")
+        with ui.grid(columns="repeat(auto-fit, minmax(180px, 1fr))").classes("w-full gap-4"):
+            for label, value, icon in figures:
+                with ui.column().classes("gap-0"):
+                    with ui.row().classes("items-center gap-1 text-grey-7 text-caption"):
+                        ui.icon(icon, size="xs")
+                        ui.label(label)
+                    ui.label(value).classes("text-h6 font-medium")
 
 
 @ui.page("/")
@@ -111,10 +148,11 @@ def dashboard_page() -> None:
     with ui.row().classes("w-full gap-4"):
         kpi_tile("À traiter", numbers["todo"], "inbox", "/offres")
         kpi_tile("Candidatures en cours", numbers["active"], "send", "/candidatures")
-        kpi_tile("Entretiens", numbers["interview"], "record_voice_over", "/candidatures")
         kpi_tile("Relances à faire", numbers["follow_up"], "notifications_active", "/candidatures",
                  "text-orange-9" if numbers["follow_up"] else "text-primary")
         kpi_tile("Écartées", numbers["rejected"], "filter_alt_off", "/offres", "text-grey-8")
+
+    application_stats_card(services.application_stats(df))
 
     follow_ups = services.needs_follow_up(df, config.follow_up_days)
     if not follow_ups.empty:
@@ -135,6 +173,10 @@ def dashboard_page() -> None:
         with ui.card():
             ui.label("Entonnoir de recherche").classes("text-subtitle1 font-medium")
             ui.plotly(funnel_figure(df, threshold)).classes("w-full")
+        with ui.card():
+            ui.label(f"Taux de pertinence IA par plateforme (score ≥ {threshold})") \
+                .classes("text-subtitle1 font-medium")
+            ui.plotly(relevance_figure(df, threshold)).classes("w-full")
         with ui.card():
             ui.label("Offres nouvelles par plateforme").classes("text-subtitle1 font-medium")
             ui.plotly(platform_figure(df, threshold)).classes("w-full")

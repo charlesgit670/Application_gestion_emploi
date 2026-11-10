@@ -61,6 +61,7 @@ class Col:
     STATUS_CHANGED_AT = "status_changed_at"
     APPLIED_ON = "applied_on"      # date de candidature (règle R7)
     NOTES = "notes"                # notes libres sur la candidature (règle R7)
+    INTERVIEW_COUNT = "interview_count"  # nombre d'entretiens réalisés (conservé même après un refus)
     # Colonne calculée au chargement (non stockée)
     DAYS_OLD = "days_old"
 

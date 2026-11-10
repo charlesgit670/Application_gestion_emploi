@@ -46,10 +46,17 @@ CREATE TABLE IF NOT EXISTS jobs (
     {Col.STATUS}            TEXT NOT NULL DEFAULT '{Status.NOUVELLE}',
     {Col.STATUS_CHANGED_AT} TEXT,
     {Col.APPLIED_ON}        TEXT,
-    {Col.NOTES}             TEXT
+    {Col.NOTES}             TEXT,
+    {Col.INTERVIEW_COUNT}   INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs({Col.STATUS});
 """
+
+# Colonnes ajoutées après la première version de la base : ajoutées automatiquement
+# (ALTER TABLE) à une base existante au démarrage, sans perte de données.
+ADDED_COLUMNS = {
+    Col.INTERVIEW_COUNT: "INTEGER NOT NULL DEFAULT 0",
+}
 
 # Colonnes qu'on peut fournir lors d'une insertion (id et scraped_at sont automatiques).
 # Seules celles présentes dans le DataFrame sont utilisées ; les autres prennent
@@ -85,6 +92,16 @@ class JobStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as conn:
             conn.executescript(SCHEMA)
+            self._upgrade_schema(conn)
+
+    @staticmethod
+    def _upgrade_schema(conn: sqlite3.Connection) -> None:
+        """Ajoute à une base existante les colonnes apparues dans une version plus récente."""
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
+        for column, definition in ADDED_COLUMNS.items():
+            if column not in existing:
+                logger.info("Mise à jour de la base : ajout de la colonne %s", column)
+                conn.execute(f"ALTER TABLE jobs ADD COLUMN {column} {definition}")
 
     @contextmanager
     def _connect(self):
@@ -209,6 +226,36 @@ class JobStore:
     def set_notes(self, job_id: int, notes: str) -> None:
         with self._connect() as conn:
             conn.execute(f"UPDATE jobs SET {Col.NOTES} = ? WHERE {Col.ID} = ?", (notes, int(job_id)))
+
+    def add_interview(self, job_id: int) -> int:
+        """Enregistre un entretien réalisé : compteur +1, statut ENTRETIEN, ligne datée dans les notes.
+
+        Retourne le nouveau nombre d'entretiens pour cette candidature.
+        """
+        with self._connect() as conn:
+            count = conn.execute(f"SELECT {Col.INTERVIEW_COUNT} FROM jobs WHERE {Col.ID} = ?",
+                                 (int(job_id),)).fetchone()[0] + 1
+            line = f"Entretien n°{count} le {date.today():%d/%m/%Y}"
+            conn.execute(
+                f"UPDATE jobs SET {Col.INTERVIEW_COUNT} = ?, {Col.STATUS} = ?, {Col.STATUS_CHANGED_AT} = ?, "
+                f"{Col.APPLIED_ON} = COALESCE({Col.APPLIED_ON}, ?), "
+                f"{Col.NOTES} = TRIM(COALESCE({Col.NOTES}, '') || char(10) || ?) WHERE {Col.ID} = ?",
+                (count, Status.ENTRETIEN.value, _now(), f"{date.today():%Y-%m-%d}", line, int(job_id)),
+            )
+        return count
+
+    def remove_interview(self, job_id: int) -> int:
+        """Annule le dernier entretien saisi (erreur de clic). Sans entretien, retour à POSTULEE."""
+        with self._connect() as conn:
+            count = max(conn.execute(f"SELECT {Col.INTERVIEW_COUNT} FROM jobs WHERE {Col.ID} = ?",
+                                     (int(job_id),)).fetchone()[0] - 1, 0)
+            status = Status.ENTRETIEN if count else Status.POSTULEE
+            conn.execute(
+                f"UPDATE jobs SET {Col.INTERVIEW_COUNT} = ?, {Col.STATUS} = ?, {Col.STATUS_CHANGED_AT} = ? "
+                f"WHERE {Col.ID} = ?",
+                (count, status.value, _now(), int(job_id)),
+            )
+        return count
 
     def log_follow_up(self, job_id: int) -> None:
         """Note une relance : ligne datée ajoutée aux notes, compteur de relance remis à zéro."""
