@@ -92,15 +92,47 @@ def is_transient(exc: BaseException) -> bool:
     return getattr(exc, "status_code", None) in TRANSIENT_STATUS
 
 
-def build_prompt(prompt_score: str, title: str, company: str, content: str) -> str:
-    """Offre présentée au LLM après les consignes (même format que l'ancienne version)."""
-    return f"{prompt_score}\n{company}\n{title}\n{content}"
+# Prompt complet envoyé au LLM. L'utilisateur ne rédige que {criteria} (ses critères de
+# recherche) : le rôle, le barème et le format de réponse sont fixés ici pour que les
+# scores restent comparables d'une offre à l'autre et compatibles avec le seuil.
+# Le barème ne mentionne PAS le seuil : changer le seuil ne doit pas changer les scores.
+PROMPT_TEMPLATE = """Tu es un assistant spécialisé dans l'analyse d'offres d'emploi.
+Évalue si l'offre ci-dessous correspond aux critères de recherche du candidat.
+
+=== CRITÈRES DE RECHERCHE DU CANDIDAT ===
+{criteria}
+
+=== BARÈME ===
+Donne un score d'intérêt entier entre 0 et 100, en te basant uniquement sur les critères ci-dessus :
+- 0 à 19   : offre hors cible, ou au moins un critère rédhibitoire est présent
+- 20 à 49  : quelques points communs, mais les attentes principales ne sont pas remplies
+- 50 à 74  : les attentes principales sont remplies, sans critère rédhibitoire
+- 75 à 100 : excellente correspondance, y compris sur les critères secondaires ou préférés
+Si les critères définissent leur propre graduation, applique-la à l'intérieur de ce barème.
+
+=== FORMAT DE RÉPONSE ===
+Réponds uniquement avec un objet JSON, sans texte autour :
+{{"reponse": <score entier>, "justification": "<arguments courts séparés par des points-virgules>"}}
+
+=== OFFRE ===
+Entreprise : {company}
+Intitulé : {title}
+Description :
+{content}
+"""
+
+
+def build_prompt(criteria: str, title: str, company: str, content: str) -> str:
+    """Prompt complet : critères de l'utilisateur insérés dans le modèle fixe."""
+    return PROMPT_TEMPLATE.format(criteria=criteria.strip(), title=title, company=company, content=content)
 
 
 class LlmScorer:
     """Évalue des offres avec le fournisseur choisi dans la configuration."""
 
     def __init__(self, llm_config: LlmConfig):
+        if not llm_config.search_criteria.strip():
+            raise LlmError("Aucun critère de recherche renseigné pour le LLM.")
         self.config = llm_config
         self.provider = llm_config.provider
         limits = PROVIDER_LIMITS[self.provider]
@@ -125,7 +157,7 @@ class LlmScorer:
 
     async def score(self, title: str, company: str, content: str) -> Verdict:
         """Évalue une offre. Lève LlmError (réponse illisible) ou l'erreur du SDK."""
-        prompt = build_prompt(self.config.prompt_score, title, company, content)
+        prompt = build_prompt(self.config.search_criteria, title, company, content)
         async with self._semaphore:
             text = await self._ask_with_retry(prompt)
         return parse_verdict(text)

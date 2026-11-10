@@ -1,10 +1,10 @@
 """Filtres appliqués aux nouvelles offres AVANT le LLM (gratuits et instantanés).
 
-- Filtre de langue : les offres dans une langue non autorisée ne sont pas enregistrées
-  (comportement de l'ancienne version, conservé).
-- Pré-filtre par mots : les offres contenant un mot de la liste noire (ou aucun mot de
-  la liste blanche) sont enregistrées avec un score de 0 : elles apparaissent dans
-  « Écartées par l'IA » et ne sont pas re-scrapées comme nouvelles (règle R3).
+- Filtre de langue : offre dans une langue non autorisée.
+- Pré-filtre par mots : offre contenant un mot de la liste noire (ou aucun mot de
+  la liste blanche).
+Dans les deux cas, l'offre est enregistrée avec un score de 0 (voir pipeline.py) :
+elle apparaît dans « Écartées » et ne revient pas comme nouvelle (règle R3).
 """
 from langdetect import DetectorFactory, LangDetectException, detect
 

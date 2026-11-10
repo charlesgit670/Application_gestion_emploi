@@ -59,14 +59,16 @@ def test_pipeline_complet(store):
     ))
 
     assert report.new == 4              # h0 était déjà en base
-    assert report.wrong_language == 1   # l'offre en anglais n'est pas enregistrée
+    assert report.wrong_language == 1   # l'offre en anglais : enregistrée avec score 0
     assert report.pre_filtered == 1     # « Stage » : enregistrée avec score 0
-    assert report.inserted == 3
+    assert report.inserted == 4
     # « Data Scientist » + l'offre h0 déjà en base mais jamais évaluée (R6)
     assert report.scored == 2 and report.llm_failures == 1
 
     df = store.load().set_index(Col.TITLE)
     assert df.loc["Stage data", Col.SCORE] == 0
+    assert df.loc["English job", Col.SCORE] == 0
+    assert "langue" in df.loc["English job", Col.AI_COMMENT]
     assert df.loc["Data Scientist", Col.SCORE] == 80
     assert pd.isna(df.loc["Data KO", Col.SCORE])  # échec LLM : sera réessayée (R6)
     assert not progress.running

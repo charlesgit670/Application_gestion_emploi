@@ -16,12 +16,13 @@ Exemple :
 import json
 import logging
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv, set_key
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from jobfinder.paths import CONFIG_PATH, DEFAULT_CONFIG_PATH, ENV_PATH
 
@@ -46,16 +47,44 @@ class PreFilterConfig(_Section):
     whitelist: list[str] = Field(default_factory=list)  # si non vide, un de ces mots est requis
 
 
+def strip_format_instructions(prompt: str) -> str:
+    """Retire d'un ancien prompt complet la partie « format de réponse JSON ».
+
+    Cette partie est désormais fixée dans le code (llm.py) : l'utilisateur
+    n'écrit plus que ses critères de recherche.
+    """
+    lower = prompt.lower()
+    positions = [lower.find(marker) for marker in FORMAT_MARKERS if marker in lower]
+    criteria = prompt[:min(positions)] if positions else prompt
+    criteria = re.sub(r"\s*Offres?\s*:\s*$", "", criteria.strip())  # ancien "Offres :" final
+    return criteria.strip()
+
+
+# Début de la partie "format de réponse" dans les anciens prompts
+FORMAT_MARKERS = ("format de réponse", "répond en donnant", "réponds en donnant", "au format json")
+
+
 class LlmConfig(_Section):
     provider: LlmProvider = "Local"
     ollama_model: str = "gemma4:26b"  # modèle utilisé avec le provider "Local"
     # Les clés API ne sont PAS ici : elles sont dans le fichier .env (voir get_api_key)
 
-    prompt_score: str = ""
+    # Critères de recherche rédigés par l'utilisateur (ce qu'il veut, tolère, refuse).
+    # Le barème 0-100 et le format de réponse sont ajoutés automatiquement (llm.py).
+    search_criteria: str = ""
+
     # Seuil de pertinence : une offre dont le score est < seuil est "écartée par l'IA".
     # Le seuil est appliqué à l'affichage : le modifier fait réapparaître (ou disparaître)
     # des offres dans "Nouvelles offres" sans relancer le LLM.
     score_threshold: int = Field(default=50, ge=0, le=100)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_old_prompt(cls, data):
+        """Ancien config.json : `prompt_score` (prompt complet) -> `search_criteria`."""
+        if isinstance(data, dict) and not data.get("search_criteria") and data.get("prompt_score"):
+            data = {**data, "search_criteria": strip_format_instructions(data["prompt_score"])}
+        return data
 
 
 class AppConfig(_Section):

@@ -2,7 +2,7 @@
 
     1. Scraping des plateformes cochées (en parallèle si use_multithreading)
     2. Ne garder que les offres absentes de la base (hash ou lien inconnus)
-    3. Filtre de langue          -> offres non enregistrées
+    3. Filtre de langue          -> offres enregistrées avec score 0
     4. Pré-filtre par mots       -> offres enregistrées avec score 0 (règle R3)
     5. Enregistrement en base    -> les offres sont sauvées AVANT le LLM :
                                     un plantage du LLM ne fait plus rien perdre
@@ -34,6 +34,7 @@ from jobfinder.storage import JobStore
 logger = logging.getLogger(__name__)
 
 LLM_TASK = "Évaluation LLM"
+LANGUAGE_COMMENT = "Écartée : langue non autorisée"
 
 
 # ---------------------------------------------------------------------------
@@ -126,19 +127,31 @@ def keep_new_offers(scraped: pd.DataFrame, store: JobStore) -> pd.DataFrame:
     return scraped[~is_known].drop_duplicates(subset=Col.LINK)
 
 
+def rejection_reason(title: str, content: str, config: AppConfig) -> str | None:
+    """Motif de rejet avant LLM (langue puis pré-filtre), ou None si l'offre passe."""
+    if not is_language_allowed(content, config.language_filter):
+        return LANGUAGE_COMMENT
+    return pre_filter_reason(title, content, config.pre_filter)
+
+
 def apply_filters(new: pd.DataFrame, config: AppConfig, report: PipelineReport) -> pd.DataFrame:
-    """Étapes 3 et 4 : filtre de langue (retire) puis pré-filtre (score 0 + motif)."""
+    """Étapes 3 et 4 : filtre de langue puis pré-filtre.
+
+    Les offres rejetées sont CONSERVÉES avec un score de 0 et le motif en commentaire :
+    elles apparaissent dans « Écartées » et ne reviennent pas comme nouvelles au
+    scraping suivant (règle R3, étendue à la langue).
+    """
     if new.empty:
         return new
-
-    allowed = new[Col.CONTENT].fillna("").apply(is_language_allowed, allowed=config.language_filter)
-    report.wrong_language = int((~allowed).sum())
-    new = new[allowed].copy()
-
-    reasons = [pre_filter_reason(row.title, row.content, config.pre_filter) for row in new.itertuples()]
+    new = new.copy()
+    reasons = [
+        rejection_reason(row.title, row.content if isinstance(row.content, str) else "", config)
+        for row in new.itertuples()
+    ]
     new[Col.SCORE] = [0 if reason else None for reason in reasons]
     new[Col.AI_COMMENT] = reasons
-    report.pre_filtered = sum(reason is not None for reason in reasons)
+    report.wrong_language = reasons.count(LANGUAGE_COMMENT)
+    report.pre_filtered = sum(reason is not None for reason in reasons) - report.wrong_language
     return new
 
 
@@ -198,7 +211,7 @@ async def run_pipeline(config: AppConfig, store: JobStore, progress: PipelinePro
         report.inserted = store.insert(new)
         progress.say(
             f"{len(scraped)} offre(s) récupérée(s), {report.new} nouvelle(s) : "
-            f"{report.wrong_language} hors langue, {report.pre_filtered} pré-filtrée(s), "
+            f"{report.wrong_language} hors langue et {report.pre_filtered} pré-filtrée(s) (score 0), "
             f"{report.inserted} enregistrée(s)."
         )
 
