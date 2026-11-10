@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 
 from scraping.FranceTravail import FranceTravail
 from scraping.HelloWork import HelloWork
-from scraping.WelcomeToTheJungle import WelcomeToTheJungle
 from scraping.Apec import Apec
 from scraping.Linkedin import Linkedin
 from scraping.ServicePublic import ServicePublic
@@ -31,13 +30,11 @@ DATA_FILE = "data/job.csv"
 DEFAULT_CONFIG = {
     "keywords": [],
     "url": {
-        "wttj": "",
         "apec": "",
         "linkedin": "",
         "sp": ""
     },
     "launch_scrap": {
-        "wttj": False,
         "apec": False,
         "linkedin": False,
         "sp": False,
@@ -45,7 +42,6 @@ DEFAULT_CONFIG = {
         "ft": False
     },
     "keyword_mode": {
-        "wttj": "one_by_one",
         "apec": "or",
         "linkedin": "or",
         "sp": "one_by_one",
@@ -68,7 +64,6 @@ DEFAULT_CONFIG = {
 
 
 class Platform(Enum):
-    wttj = WelcomeToTheJungle
     apec = Apec
     linkedin = Linkedin
     sp = ServicePublic
@@ -372,7 +367,6 @@ async def update_store_data(progress_dict):
 
 if __name__ == "__main__":
     progress_dict = {
-        "WelcomeToTheJungle": [0, 1],
         "Linkedin": [0, 1],
         "Apec": [0, 1],
         "ServicePublic": [0, 1],

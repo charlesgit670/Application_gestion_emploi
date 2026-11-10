@@ -41,7 +41,7 @@ with st.expander("⚙️ Paramètres des Scrapers et Filtres", expanded=True):
 
     st.header("🔗 Configuration des Plateformes")
     platforms = [
-        ("wttj", "Welcome To The Jungle"), ("apec", "APEC"), ("linkedin", "LinkedIn"),
+        ("apec", "APEC"), ("linkedin", "LinkedIn"),
         ("sp", "Service Public"), ("hw", "HelloWork"), ("ft", "France Travail")
     ]
 
@@ -111,7 +111,7 @@ st.header("🚀 Lancement du Traitement")
 @st.cache_resource
 def get_global_progress():
     return {
-        "WelcomeToTheJungle": [0, 1], "Linkedin": [0, 1], "Apec": [0, 1],
+        "Linkedin": [0, 1], "Apec": [0, 1],
         "ServicePublic": [0, 1], "HelloWork": [0, 1], "FranceTravail": [0, 1],
         "Traitement des nouvelles offres (LLM)": [0, 1]
     }

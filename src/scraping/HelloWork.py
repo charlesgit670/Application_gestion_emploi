@@ -86,7 +86,7 @@ class HelloWork(JobFinder):
                         title_elem = offer_content.find('h3')
                         if not title_elem:
                             continue
-                        paragraphs = title_elem.find_all('p')
+                        paragraphs = title_elem.find_all(['span', 'p'], recursive=False)  # <span> depuis oct. 2026
                         if not paragraphs:
                             continue
                         date_elem = offer.find('div', class_='text-grey-500')

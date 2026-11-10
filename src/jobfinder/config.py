@@ -28,7 +28,7 @@ from jobfinder.paths import CONFIG_PATH, DEFAULT_CONFIG_PATH, ENV_PATH
 logger = logging.getLogger(__name__)
 
 # Clés courtes des plateformes (utilisées dans config.json et dans la base)
-PLATFORM_KEYS = ("wttj", "apec", "linkedin", "sp", "hw", "ft")
+PLATFORM_KEYS = ("linkedin", "apec", "hw", "ft", "sp")
 
 KeywordMode = Literal["one_by_one", "or", "all"]
 LlmProvider = Literal["Local", "ChatGPT", "Mistral"]
@@ -77,18 +77,18 @@ class AppConfig(_Section):
     follow_up_days: int = Field(default=10, ge=1)
 
     def active_platforms(self) -> list[str]:
-        """Clés des plateformes cochées pour le scraping."""
-        return [key for key, active in self.launch_scrap.items() if active]
+        """Clés des plateformes cochées pour le scraping (les plateformes abandonnées sont ignorées)."""
+        return [key for key, active in self.launch_scrap.items() if active and key in PLATFORM_KEYS]
 
     def scraping_errors(self) -> list[str]:
         """Liste des problèmes empêchant de lancer le scraping (vide si tout va bien)."""
         errors = []
         if not any(k.strip() for k in self.keywords):
             errors.append("Aucun mot-clé renseigné.")
+        if not self.active_platforms():
+            errors.append("Aucune plateforme cochée.")
         for key in self.active_platforms():
-            if key not in PLATFORM_KEYS:
-                errors.append(f"Plateforme inconnue : {key}")
-            elif not self.url.get(key):
+            if not self.url.get(key):
                 errors.append(f"URL de recherche manquante pour {key}.")
         return errors
 

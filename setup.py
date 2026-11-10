@@ -11,8 +11,6 @@ build_exe_options = {
                  "backoff",
                  "requests",
                  "bs4",
-                 "selenium",
-                 "webdriver_manager",
                  "streamlit",
                  "dateparser",
                  "aiolimiter",

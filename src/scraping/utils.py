@@ -3,13 +3,8 @@ import re
 import pandas as pd
 import json
 import functools
-import threading
 import urllib.parse
-from selenium import webdriver
 from aiolimiter import AsyncLimiter
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.options import Options
 import backoff
 from ollama import generate
 from pydantic import BaseModel
@@ -39,31 +34,9 @@ def measure_time(func):
         return result
     return wrapper
 
-# Verrou + cache pour éviter la race condition ChromeDriverManager en multithreading
-_driver_path_lock = threading.Lock()
-_driver_path = None
-
 # On limite à 1 requête par seconde (ou légèrement moins pour être sûr, ex: 1 req / 1.1 sec)
 # À ajuster selon les limites exactes du free tier pour le modèle choisi
 rate_limiter = AsyncLimiter(1, 1.1)
-
-# Fonction pour créer un driver
-def create_driver():
-    global _driver_path
-    with _driver_path_lock:
-        if _driver_path is None:
-            _driver_path = ChromeDriverManager().install()
-
-    options = Options()
-    # options.add_argument("user-data-dir=C:\\Users\\charles\\AppData\\Local\\Google\\Chrome\\User Data")
-    options.add_argument("--headless")  # Mode headless
-    options.add_argument("--disable-gpu")  # Recommandé pour éviter certains bugs en mode headless
-    options.add_argument("--window-size=1920x1080")  # Taille de la fenêtre (facultatif)
-    options.add_argument("--no-sandbox")  # Utile dans certains environnements Linux
-    options.add_argument("--disable-dev-shm-usage")  # Évite certains problèmes de mémoire
-
-    driver = webdriver.Chrome(service=Service(_driver_path), options=options)
-    return driver
 
 def normalize_keywords(keywords):
     cleaned = []

@@ -7,9 +7,7 @@ python-dotenv
 requests
 beautifulsoup4
 dateparser
-playwright        # APEC (antibot) : lancer ensuite "playwright install firefox"
-selenium          # Welcome to the Jungle (sera retiré, plateforme abandonnée)
-webdriver-manager # idem
+playwright  # APEC (antibot) : lancer ensuite "playwright install firefox"
 
 # --- LLM ---
 openai
