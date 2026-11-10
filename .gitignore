@@ -1,2 +1,19 @@
-.idea
+# IDE
+.idea/
+.vscode/
+
+# Environnement Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Données personnelles (offres, base, logs)
 /data/
+
+# Configuration personnelle et secrets :
+# - config.json est créé automatiquement à partir de config_default.json
+# - les clés API vont dans .env (voir .env.example)
+config.json
+.env

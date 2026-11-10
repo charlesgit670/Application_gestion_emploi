@@ -1,16 +1,28 @@
+# --- Données ---
 pandas
-tqdm
+pydantic
+python-dotenv
+
+# --- Scraping ---
+requests
+beautifulsoup4
+dateparser
+playwright        # APEC (antibot) : lancer ensuite "playwright install firefox"
+selenium          # Welcome to the Jungle (sera retiré, plateforme abandonnée)
+webdriver-manager # idem
+
+# --- LLM ---
 openai
 mistralai
 ollama
 backoff
-requests
-beautifulsoup4
-selenium
-webdriver-manager
 aiolimiter
 langdetect
+
+# --- Interface ---
 streamlit
-dateparser
-langdetect
 plotly
+tqdm
+
+# --- Tests ---
+pytest

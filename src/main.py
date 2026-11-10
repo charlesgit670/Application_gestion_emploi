@@ -10,6 +10,7 @@ from mistralai.client import Mistral
 from tqdm import tqdm
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dotenv import load_dotenv
 
 from scraping.FranceTravail import FranceTravail
 from scraping.HelloWork import HelloWork
@@ -21,6 +22,10 @@ from scraping.utils import add_LLM_comment, is_language_allowed, add_LLM_comment
 from JobColumns import JobColumns
 
 CONFIG_FILE = "config.json"
+DEFAULT_CONFIG_FILE = "config_default.json"
+
+# Charge les clés API depuis le fichier .env (s'il existe) dans les variables d'environnement
+load_dotenv()
 DATA_FILE = "data/job.csv"
 
 DEFAULT_CONFIG = {
@@ -124,6 +129,9 @@ def _backfill_defaults(config, defaults):
 
 
 def load_config():
+    # Premier lancement : config.json (personnel, non versionné) est créé depuis le modèle
+    if not os.path.exists(CONFIG_FILE) and os.path.exists(DEFAULT_CONFIG_FILE):
+        shutil.copy(DEFAULT_CONFIG_FILE, CONFIG_FILE)
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             config = json.load(f)
