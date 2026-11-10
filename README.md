@@ -136,6 +136,7 @@ Le dossier `data/` n'est pas versionné.
 
 ```
 run.py                      point d'entrée (python run.py)
+debug_scraper.py            lancer un scraper seul depuis l'IDE (voir « Déboguer un scraper »)
 JobFinder.exe               lanceur Windows (source : launcher/JobFinder.cs, compilation : launcher/build.bat)
 src/jobfinder/
     config.py               configuration typée et validée (pydantic)
@@ -152,6 +153,31 @@ tests/                      tests pytest (sans réseau)
 ```
 
 Le pipeline peut aussi être lancé sans interface : `cd src && python -m jobfinder.pipeline`.
+
+---
+
+## 🐞 Déboguer un scraper
+
+Chaque scraper peut être lancé seul, **sans rien écrire dans la base** :
+
+- **Depuis l'IDE (points d'arrêt)** : ouvrez `debug_scraper.py` à la racine, choisissez la
+  plateforme et les réglages en haut du fichier, placez vos points d'arrêt dans
+  `src/jobfinder/scrapers/<site>.py`, puis lancez `debug_scraper.py` en mode Debug.
+- **En ligne de commande**, depuis `src/` :
+  ```bash
+  python -m jobfinder.scrapers --list                    # plateformes disponibles
+  python -m jobfinder.scrapers ft --max-details 3        # France Travail, 3 fiches seulement
+  python -m jobfinder.scrapers hw --keywords "data scientist" --days 3
+  ```
+
+Chaque exécution crée `data/debug/<plateforme>_<date-heure>/` avec **chaque page téléchargée**
+(`NNN_<code HTTP>_<adresse>.html`, dans l'ordre) et `resultat.csv`. Comparer ces pages avec ce
+qu'affiche le navigateur révèle la plupart des pannes : HTML modifié par le site, contenu chargé
+en JavaScript (absent des pages téléchargées), blocage antibot… Le journal détaillé indique
+chaque requête et pourquoi une offre a été ignorée.
+
+L'APEC tourne dans un processus séparé (navigateur Playwright) ; pour le déboguer :
+`python -m jobfinder.scrapers.apec_worker < ../config.json` (depuis `src/`).
 
 ---
 

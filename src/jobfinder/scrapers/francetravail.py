@@ -35,16 +35,18 @@ class FranceTravail(BaseScraper):
         return self.fetch_details(jobs, progress, self._read_description)
 
     def _read_search(self, url: str) -> list[RawJob]:
+        first_page = self.fetch_soup(f"{url}&range=0-{PAGE_SIZE - 1}")
         # Le titre de la page commence par le nombre total d'offres : "42 offres d'emploi..."
-        title = self.fetch_soup(url).select_one("h1.title")
+        title = first_page.select_one("h1.title")
         first_word = title.get_text(strip=True).split()[0] if title else ""
         if not first_word.isdigit():
+            logger.info("France Travail : nombre d'offres illisible dans le titre de %s", url)
             return []
         total = int(first_word)
 
         jobs = []
         for start in range(0, total, PAGE_SIZE):
-            soup = self.fetch_soup(f"{url}&range={start}-{start + PAGE_SIZE - 1}")
+            soup = first_page if start == 0 else self.fetch_soup(f"{url}&range={start}-{start + PAGE_SIZE - 1}")
             result_list = soup.find("ul", class_="result-list")
             if result_list is None:
                 continue

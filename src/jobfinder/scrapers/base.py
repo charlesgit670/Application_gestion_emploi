@@ -12,11 +12,14 @@ scrapers/__init__.py.
 """
 import hashlib
 import logging
+import re
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import date, timedelta
+from pathlib import Path
+from urllib.parse import urlsplit
 
 import backoff
 import pandas as pd
@@ -75,6 +78,11 @@ class BaseScraper(ABC):
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
 
+        # Options de débogage (voir jobfinder/scrapers/__main__.py), désactivées par défaut
+        self.debug_dir: Path | None = None   # si défini : chaque page téléchargée y est sauvegardée
+        self.max_details: int | None = None  # si défini : nombre max de fiches détaillées lues
+        self._saved_pages = 0
+
     # ------------------------------------------------------------- à implémenter
     @abstractmethod
     def scrape(self, progress: ProgressCallback) -> list[RawJob]:
@@ -90,6 +98,8 @@ class BaseScraper(ABC):
     def fetch(self, url: str) -> requests.Response:
         """GET avec timeout. Réessaie jusqu'à 5 fois sur erreur réseau ou erreur temporaire."""
         response = self.session.get(url, timeout=REQUEST_TIMEOUT)
+        logger.debug("GET %s -> HTTP %s (%d caractères)", url, response.status_code, len(response.text))
+        self._save_page(url, response)
         if response.status_code in RETRYABLE_STATUS:
             raise TemporaryHttpError(f"HTTP {response.status_code} sur {url}")
         response.raise_for_status()  # 404, 403... : erreur définitive
@@ -98,6 +108,15 @@ class BaseScraper(ABC):
     def fetch_soup(self, url: str) -> BeautifulSoup:
         """Page HTML prête à être explorée avec BeautifulSoup."""
         return BeautifulSoup(self.fetch(url).text, "html.parser")
+
+    def _save_page(self, url: str, response: requests.Response) -> None:
+        """Mode débogage : enregistre la page reçue (à ouvrir dans un navigateur ou un éditeur)."""
+        if self.debug_dir is None:
+            return
+        self._saved_pages += 1
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", urlsplit(url).path).strip("_")[-60:] or "page"
+        path = self.debug_dir / f"{self._saved_pages:03d}_{response.status_code}_{slug}.html"
+        path.write_text(f"<!-- {url} -->\n{response.text}", encoding="utf-8")
 
     # --------------------------------------------------------------- outils
     def is_recent(self, published_on: date | None) -> bool:
@@ -112,6 +131,10 @@ class BaseScraper(ABC):
 
         Une offre en erreur est ignorée (et journalisée) sans arrêter les autres.
         """
+        if self.max_details is not None and len(jobs) > self.max_details:
+            logger.info("%s : mode débogage, lecture limitée à %d fiche(s) sur %d",
+                        self.label, self.max_details, len(jobs))
+            jobs = jobs[:self.max_details]
         complete = []
         for i, job in enumerate(jobs, start=1):
             try:

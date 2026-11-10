@@ -99,3 +99,24 @@ def test_une_offre_en_erreur_n_arrete_pas_les_autres():
     result = scraper.fetch_details(jobs, lambda i, n: seen.append((i, n)), read)
     assert [j.link for j in result] == ["l1", "l3"]
     assert seen == [(1, 3), (2, 3), (3, 3)]  # la progression avance quand même
+
+
+def test_options_de_debogage(tmp_path, monkeypatch):
+    """max_details limite les fiches lues ; debug_dir sauvegarde chaque page téléchargée."""
+    scraper = FakeScraper(AppConfig())
+    scraper.max_details = 2
+    jobs = [RawJob(str(i), "c", f"l{i}") for i in range(5)]
+    assert len(scraper.fetch_details(jobs, lambda i, n: None, lambda job: "texte")) == 2
+
+    class FakeResponse:
+        status_code, text = 200, "<html>ok</html>"
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(scraper.session, "get", lambda url, timeout: FakeResponse())
+    scraper.debug_dir = tmp_path
+    scraper.fetch("https://site.fr/offres/detail/42")
+    saved = list(tmp_path.iterdir())
+    assert len(saved) == 1 and saved[0].name == "001_200_offres_detail_42.html"
+    assert "https://site.fr/offres/detail/42" in saved[0].read_text(encoding="utf-8")
