@@ -12,6 +12,7 @@ from datetime import date
 import pandas as pd
 
 from jobfinder.config import AppConfig, load_config
+from jobfinder.duplicates import find_probable_duplicates
 from jobfinder.models import ACTIVE_APPLICATION, Col, Status, new_relevant_offers, offers_rejected_by_ai
 from jobfinder.pipeline import PipelineProgress, PipelineReport, run_pipeline
 from jobfinder.storage import JobStore
@@ -106,6 +107,28 @@ def relevance_by_platform(df: pd.DataFrame, threshold: int) -> pd.DataFrame:
                           "relevant": relevant.groupby(evaluated[Col.PLATFORM]).sum()}).fillna(0)
     table["percent"] = 100 * table["relevant"] / table["evaluated"]
     return table.sort_values("percent")
+
+
+# ---------------------------------------------------------------------------
+# Doublons probables entre plateformes (règle R5)
+# ---------------------------------------------------------------------------
+_duplicates_cache: dict = {"key": None, "value": {}}
+
+
+def probable_duplicates() -> dict[int, list[int]]:
+    """{id: [ids des doublons probables]}. Calcul (~1 s) refait seulement si de nouvelles
+    offres sont arrivées : un changement de statut ne modifie pas les doublons."""
+    with store._connect() as conn:
+        key = conn.execute(f"SELECT COUNT(*), MAX({Col.ID}) FROM jobs").fetchone()
+    if key != _duplicates_cache["key"]:
+        _duplicates_cache["value"] = find_probable_duplicates(load_jobs())
+        _duplicates_cache["key"] = key
+    return _duplicates_cache["value"]
+
+
+def duplicates_of(job_id: int) -> list[dict]:
+    """Doublons probables d'une offre, avec leur plateforme et leur statut."""
+    return [job for other in probable_duplicates().get(int(job_id), []) if (job := store.get(other))]
 
 
 def load_jobs() -> pd.DataFrame:

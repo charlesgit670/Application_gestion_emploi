@@ -114,6 +114,7 @@ class JobBrowser:
 
         start = (page - 1) * PAGE_SIZE
         threshold = self.threshold()
+        duplicates = services.probable_duplicates()
         with ui.list().props("bordered separator").classes("w-full rounded-borders"):
             for position, row in enumerate(self.rows.iloc[start:start + PAGE_SIZE].itertuples(), start=start):
                 item = ui.item(on_click=lambda p=position: self.select(p)).classes("job-item")
@@ -126,7 +127,11 @@ class JobBrowser:
                         ui.item_label(f"{row.company} · {platform} · {age_text(row.days_old)}") \
                             .props("caption").classes("ellipsis")
                     with ui.item_section().props("side"):
-                        score_badge(row.score, threshold)
+                        with ui.row().classes("items-center gap-1 no-wrap"):
+                            if row.id in duplicates:
+                                ui.icon("content_copy", size="xs", color="orange-8") \
+                                    .tooltip("Doublon probable sur une autre plateforme")
+                            score_badge(row.score, threshold)
 
     @ui.refreshable_method
     def _render_detail(self) -> None:
@@ -154,6 +159,8 @@ class JobBrowser:
                 ui.button("Voir l'offre", icon="open_in_new",
                           on_click=lambda: ui.navigate.to(job[Col.LINK], new_tab=True)).props("flat")
 
+            self._render_duplicates(job)
+
             if isinstance(job.get(Col.AI_COMMENT), str) and job[Col.AI_COMMENT].strip():
                 with ui.card().props("flat bordered").classes("w-full tint-primary q-mt-sm"):
                     ui.label("Analyse de l'IA").classes("text-caption text-primary font-medium")
@@ -165,3 +172,20 @@ class JobBrowser:
         with ui.card().classes("w-full"):
             ui.label("Description").classes("text-subtitle2 text-grey-7")
             ui.label(job.get(Col.CONTENT) or "Description non disponible.").classes("job-description")
+
+    @staticmethod
+    def _render_duplicates(job: dict) -> None:
+        """Avertissement si la même offre semble publiée sur une autre plateforme (R5)."""
+        others = services.duplicates_of(job[Col.ID])
+        if not others:
+            return
+        with ui.column().classes("w-full tint-warning rounded-borders q-pa-sm q-mt-sm gap-1"):
+            with ui.row().classes("items-center gap-2"):
+                ui.icon("content_copy", color="orange-9")
+                ui.label("Doublon probable : la même offre semble publiée ailleurs").classes("font-medium")
+            for other in others:
+                platform = PLATFORM_LABELS.get(other[Col.PLATFORM], other[Col.PLATFORM])
+                status = STATUS_LABELS[Status(other[Col.STATUS])]
+                with ui.row().classes("items-center gap-2 text-body2"):
+                    ui.link(f"{platform} : {other[Col.TITLE]} ({other[Col.COMPANY]})", other[Col.LINK], new_tab=True)
+                    ui.badge(status).props("color=grey-7" if other[Col.STATUS] == Status.NOUVELLE else "color=orange-9")
