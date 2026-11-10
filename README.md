@@ -1,196 +1,177 @@
-# Application de gestion de recherche d'emploi
+# JobFinder : recherche d'emploi assistée
 
-## 🎯 Objectif
+Application locale qui **récupère automatiquement les offres de plusieurs sites d'emploi**,
+les **évalue avec un LLM** selon vos critères, puis vous aide à **trier les offres et suivre
+vos candidatures** (relances, entretiens, statistiques).
 
-Cette application permet de **scraper automatiquement plusieurs sites d'emploi** et de **gérer le suivi des offres récupérées**.  
-Elle propose également un **filtrage intelligent des offres via un LLM** (modèle de langage) grâce à un prompt adapté.  
-
-Actuellement, les plateformes sont supportées :  
-- **LinkedIn**  
-- **Welcome to the Jungle**  (Edit : Suite à des gros changements de la plateforme le scrapping n'est plus supporté)
-- **Apec**
-- **Service Public**
-- **HelloWork**
-- **France Travail**
-
----
-
-## ⚙️ Principe de fonctionnement
-
-1. **Récupération** des offres depuis les sites d'emploi.  
-2. **Détection des nouvelles offres** en évitant les doublons :  
-   - Création d’un **hash unique** pour chaque offre (Plateforme + Titre + Entreprise + Description).  
-   - Suppression des doublons.  
-   - Comparaison avec la base existante pour ne garder que les nouvelles offres.  
-3. **Sauvegarde** des nouvelles offres.  
+Plateformes supportées : **LinkedIn**, **APEC**, **HelloWork**, **France Travail**, **Choisir le Service Public**.
 
 ---
 
 ## 🚀 Lancer l'application
 
-1. Télécharger le projet.  
-2. Installer les dépendances :
+### Le plus simple : `JobFinder.exe` (Windows)
 
-   ```bash
-   pip install -r requirements.txt
-   playwright install firefox
+1. Installez **uv** une seule fois (gestionnaire Python, un seul exécutable) :
+   ```powershell
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
+2. Double-cliquez sur **`JobFinder.exe`** à la racine du projet.
 
-3. Lancer l'application depuis la racine du projet :
+Au premier lancement, uv installe automatiquement la bonne version de Python et toutes les
+dépendances (quelques minutes). Les lancements suivants sont immédiats. L'application s'ouvre
+dans votre navigateur sur http://localhost:8080. **Fermer la fenêtre noire arrête JobFinder.**
 
-   ```bash
-   python run.py
-   ```
+> Variante sans installer uv : copiez `uv.exe` à côté de `JobFinder.exe`.
 
-   L'interface (NiceGUI) s'ouvre dans un onglet du navigateur : http://localhost:8080.
-   Au premier lancement, l'ancien fichier `data/job.csv` est importé automatiquement dans
-   la base `data/jobs.db` (le CSV est conservé tel quel).
+### En ligne de commande
 
-4. Lancer les tests : `pytest`
+```bash
+uv run python run.py            # avec uv (recommandé)
+# ou, dans un environnement Python 3.12+ :
+pip install -r requirements.txt
+playwright install firefox      # navigateur utilisé pour l'APEC
+python run.py
+```
+
+### Premier lancement après la version Streamlit
+
+L'ancien fichier `data/job.csv` est importé automatiquement dans la base `data/jobs.db`
+(une seule fois, quand la base est vide). Le CSV n'est ni modifié ni supprimé.
 
 ---
 
-## 🔧 Configuration du Scraping
+## 🧭 Utilisation
 
-Sur la page **Mettre à jour les offres** :
+| Page | Rôle |
+|---|---|
+| **Tableau de bord** | Offres à traiter, candidatures en cours, relances à faire ; suivi des candidatures (taux d'entretien, refus) ; graphiques : entonnoir, taux de pertinence IA par plateforme, volumes, publications par semaine |
+| **Offres** | Onglets *À traiter*, *Écartées*, *Déjà lues* ; filtres (texte, plateforme, ancienneté) ; **seuil de pertinence** réglable en direct |
+| **Candidatures** | Onglets *Postulées*, *Entretiens*, *Refusées* ; date de candidature, notes, entretiens réalisés, rappel de relance |
+| **Scraping & réglages** | Toute la configuration, lancement d'une mise à jour et suivi en direct (on peut changer de page pendant le scraping) |
 
-![configuration_page.png](imgs%2Fconfiguration_page.png)
+**Raccourcis clavier** (listes d'offres) : `←` / `→` naviguer · `L` lue · `P` postuler ·
+`R` réhabiliter / remettre à traiter / relancée · `E` entretien réalisé · `X` refusée.
+Après une action, l'offre suivante s'affiche à la même place : idéal pour trier à la chaîne.
 
-- **Sauvegarder la configuration** : indispensable pour que vos changements soient pris en compte.  
-- **Lancer le scrapping** : démarre le scraping selon vos paramètres.  
-- **Suivi en temps réel** : 4 barres de progression (une par jobboard + une pour le traitement LLM si activé).  
-- **Mots-clés** : un mot-clé par ligne.  
-- **URLs des sites** : collez l’URL de recherche issue des jobboards après avoir configuré les filtres comme la localisation (des exemples sont fournis).  
-- **Mode des mots-clés (`keyword_mode`)** : définit comment la requête est construite pour chaque jobboard.  
-- **Jobboards à scrapper** : cochez les plateformes souhaitées.  
-- **Options générales** :
-  - Un filtre pour récupérer que les offres les plus récentes (en nombre de jours) sauf pour le Service Public.
-  - Scraping en parallèle (à relancer si certains scrapers échouent).  
-  - Activation du LLM.  
-- **Paramètres du LLM** :  
-  - **Local** : nécessite [Ollama](https://ollama.ai/) avec le modèle *gemma3:12b*.  
-  - **ChatGPT** : nécessite une clé API (payant).  
-  - **Mistral** : nécessite une clé API (version gratuite limitée).  
-- **Générer un score** : attribue un score (0–100) et un commentaire pour chaque offre (le prompt doit garder le format fourni).  
-### Modes keyword_mode
-
-Les valeurs possibles dans `config.json` > `keyword_mode` sont :
-
-- `one_by_one` : une URL de recherche par mot-clé (plus de volume, plus de bruit possible).
-- `or` : une seule URL avec les mots-clés combinés en `OR` (plus ciblé).
-- `all` : une seule URL avec tous les mots-clés concaténés (plus strict, moins de résultats).
-
-Exemple:
-
-```json
-"keyword_mode": {
-  "wttj": "one_by_one",
-  "apec": "or",
-  "linkedin": "or",
-  "sp": "one_by_one",
-  "hw": "one_by_one",
-  "ft": "one_by_one"
-}
-```
-
-### Dépannage rapide
-
-- Si aucune offre n’est récupérée: vérifier `launch_scrap.<plateforme> = true`.
-- Si le scraping ne démarre pas: vérifier la présence des clés `keywords`, `url.<plateforme>`, `keyword_mode.<plateforme>`.
-- Si le volume est trop faible: tester `one_by_one` au lieu de `all`.
-- Si le volume est trop bruité: tester `or` ou `all`.
-
-Les valeurs possibles dans `config.json` > `keyword_mode` sont :
-
-- `one_by_one` : une URL de recherche par mot-clé (plus de volume, plus de bruit possible).
-- `or` : une seule URL avec les mots-clés combinés en `OR` (plus ciblé).
-- `all` : une seule URL avec tous les mots-clés concaténés (plus strict, moins de résultats).
-
-Exemple:
-
-```json
-"keyword_mode": {
-  "wttj": "one_by_one",
-  "apec": "or",
-  "linkedin": "or",
-  "sp": "one_by_one",
-  "hw": "one_by_one",
-  "ft": "one_by_one"
-}
-```
 ---
 
-## 🔐 Sécurité des clés API
+## ⚙️ Fonctionnement d'une mise à jour
 
-Les clés API pour OpenAI (ChatGPT) et Mistral sont stockées dans un fichier **`.env`** à la racine du projet, jamais dans `config.json`.
+1. **Scraping** des plateformes cochées (en parallèle).
+2. **Nouvelles offres uniquement** : une offre est déjà connue si son lien ou son empreinte
+   (plateforme + titre + entreprise + description) est déjà en base.
+3. **Filtres gratuits avant le LLM** : langue de l'offre et pré-filtre par mots (exclus / requis).
+   Les offres rejetées sont **conservées avec un score de 0** (onglet *Écartées*) pour ne pas
+   revenir comme nouvelles au scraping suivant.
+4. **Enregistrement** en base, avant l'évaluation : un plantage du LLM ne fait rien perdre.
+5. **Évaluation LLM** : score de 0 à 100 + justification. Les offres dont l'évaluation a
+   échoué sont réessayées automatiquement au scraping suivant.
 
-- Le plus simple : saisissez la clé dans la page de configuration, elle est enregistrée automatiquement dans `.env`.
-- Ou bien copiez `.env.example` en `.env` et complétez-le :
+### Règles de tri
+
+- **Statut unique** par offre : *nouvelle → lue* ou *nouvelle → postulée → entretien → refusée*.
+- **« Écartée par l'IA »** = offre nouvelle dont le score est inférieur au **seuil**. Le seuil est
+  appliqué à l'affichage : le modifier déplace immédiatement les offres entre *À traiter* et
+  *Écartées*, sans relancer le LLM. Une offre peut être **réhabilitée** à la main.
+- **Doublons probables** : une même offre publiée sur plusieurs sites (même entreprise une fois
+  normalisée, titres quasi identiques, publiées à moins de 3 semaines d'écart) est signalée par
+  une icône et un encadré indiquant son statut ailleurs (ex : *déjà postulée sur LinkedIn*).
+  Rien n'est fusionné automatiquement.
+- **Relance** conseillée après N jours sans nouvelle (réglable) ; le bouton *Relancée* note la
+  relance dans les notes et remet le compteur à zéro.
+- **Entretiens** : chaque entretien réalisé est compté (et conservé après un refus) pour calculer
+  le taux d'entretien.
+
+---
+
+## 🔧 Configuration
+
+Tout se règle dans la page **Scraping & réglages**. Les réglages sont enregistrés dans
+`config.json` (personnel, non versionné, créé au premier lancement à partir de
+`config_default.json`).
+
+- **URL de recherche** : faites une recherche sur le site avec vos filtres (lieu, contrat...),
+  puis collez l'URL. Le mot-clé de l'URL est remplacé par chacun de vos mots-clés.
+- **Mode des mots-clés** :
+  - `one_by_one` : une recherche par mot-clé (plus de volume, plus de bruit) ;
+  - `or` : une seule recherche « mot1 OR mot2 » (plus ciblé) ;
+  - `all` : une seule recherche avec tous les mots (plus strict).
+- **Ancienneté maximale** des offres récupérées (non appliquée au Service Public, dont les
+  offres restent ouvertes longtemps).
+- **LLM** :
+  - **Local** : [Ollama](https://ollama.com/) avec le modèle de votre choix (par défaut `gemma4:26b`) ;
+  - **ChatGPT** ou **Mistral** : clé API nécessaire.
+- **Critères de recherche** : décrivez uniquement ce que vous voulez, tolérez et refusez.
+  Le rôle du LLM, le barème de 0 à 100 et le format de réponse sont ajoutés automatiquement
+  (bouton *Voir le prompt complet*). Barème : 0-19 hors cible · 20-49 peu de points communs ·
+  50-74 attentes principales remplies · 75-100 excellente correspondance.
+
+### 🔐 Clés API
+
+Les clés ne sont **jamais** dans `config.json` : elles sont dans le fichier **`.env`** à la racine
+(exclu de git). Le plus simple est de les saisir dans la page de réglages, qui écrit `.env`.
+Sinon, copiez `.env.example` en `.env` :
 
 ```bash
 GPT_API_KEY=votre-clé-openai
 MISTRAL_API_KEY=votre-clé-mistral
 ```
 
-Une variable d'environnement système portant le même nom est aussi prise en compte.
-Le fichier `.env` est exclu de git (`.gitignore`).
+---
+
+## 💾 Données
+
+| Fichier | Contenu |
+|---|---|
+| `data/jobs.db` | Base SQLite de toutes les offres (lisible avec pandas : `pd.read_sql("SELECT * FROM jobs", sqlite3.connect("data/jobs.db"))`) |
+| `data/backup/` | Copie de la base avant chaque mise à jour |
+| `data/jobfinder.log` | Journal de l'application |
+
+Le dossier `data/` n'est pas versionné.
 
 ---
 
-## 📌 Fonctionnalités principales
+## 🗂️ Organisation du code
 
-### 🆕 Nouvelles offres
+```
+run.py                      point d'entrée (python run.py)
+JobFinder.exe               lanceur Windows (source : launcher/JobFinder.cs, compilation : launcher/build.bat)
+src/jobfinder/
+    config.py               configuration typée et validée (pydantic)
+    models.py               statuts, colonnes, règles de pertinence
+    storage.py              base SQLite
+    migration.py            import unique de l'ancien CSV
+    filters.py              filtres de langue et pré-filtre
+    llm.py                  évaluation LLM (Ollama / ChatGPT / Mistral) et prompt
+    pipeline.py             orchestration d'une mise à jour
+    duplicates.py           doublons probables entre plateformes
+    scrapers/               un fichier par site + socle commun (base.py)
+    ui/                     interface NiceGUI (une page par fichier dans ui/pages/)
+tests/                      tests pytest (sans réseau)
+```
 
-![Nouvelles offres](imgs%2Fapp_new_job_img.png)
-
-- Pagination (ex. **14/21**)  
-- Titre du poste et nom de l’entreprise  
-- Lien direct vers l’offre  
-- Score (0–100) + commentaire généré par GPT  
-- Description de l'offre  
-- Boutons disponibles :  
-  - **Suivant / Précédent**  
-  - **Postuler** → classe l’offre dans *Candidatures en cours*  
-  - **Marquer comme lue** → classe l’offre dans *Offres déjà lues*  
-
----
-
-### 🧹 Offres filtrées par GPT
-
-![app_unintesresting_job_img.png](imgs%2Fapp_unintesresting_job_img.png)
-
-- Contient les offres avec un score **< 50%**  
-- Affichage du score et du commentaire GPT  
-- Description consultable via un bouton déroulant  
-- **Restaurer** → replace l’offre dans *Nouvelles offres*  
+Le pipeline peut aussi être lancé sans interface : `cd src && python -m jobfinder.pipeline`.
 
 ---
 
-### 📖 Offres déjà lues
+## 🧪 Tests
 
-![Offres déjà lues](imgs%2Fapp_already_seen_img.png)
+```bash
+uv run pytest        # ou : pytest
+```
 
-- Liste des offres marquées comme lues  
-- Description consultable via un bouton déroulant  
-- **Corbeille** → replace l’offre dans *Nouvelles offres*  
-
----
-
-### ⏳ Candidatures en cours
-
-![Candidatures en cours](imgs%2Fapp_pending_img.png)
-
-- Liste des offres où vous avez postulé  
-- **Corbeille** → replace l’offre dans *Offres non lues*  
-- **Refusé** → classe l’offre dans *Candidatures refusées*  
+Les tests n'accèdent ni au réseau ni au dossier `data/`.
 
 ---
 
-### ❌ Candidatures refusées
+## 🛠️ Dépannage
 
-![Candidatures refusées](imgs%2Fapp_refused_img.png)
-
-- Liste des candidatures refusées  
-- **Restaurer** → replace l’offre dans *Candidatures en cours*  
-
----
+- **Aucune offre récupérée sur un site** : vérifiez que la plateforme est cochée et que l'URL de
+  recherche est renseignée ; consultez le journal (page de réglages ou `data/jobfinder.log`).
+  Les sites changent régulièrement leur HTML : un scraper peut devoir être adapté
+  (`src/jobfinder/scrapers/`).
+- **Volume trop faible** : essayez le mode `one_by_one` ; **trop de bruit** : `or` ou `all`.
+- **LLM local** : vérifiez qu'Ollama est lancé et que le modèle configuré est installé
+  (`ollama list`).
+- **Port 8080 déjà utilisé** : une autre instance de JobFinder est probablement ouverte.
