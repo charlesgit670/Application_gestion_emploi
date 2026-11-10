@@ -4,12 +4,23 @@ import time
 import json
 import os
 import asyncio
+from dotenv import set_key
 from main import update_store_data, load_config
 
 from app_utils import ensure_data_loaded
 
 CONFIG_FILE = "config.json"
 DEFAULT_CONFIG_FILE = "config_default.json"
+ENV_FILE = ".env"  # clés API (jamais versionné)
+
+
+def api_key_input(label, env_name):
+    """Champ de saisie d'une clé API : la clé est enregistrée dans .env, pas dans config.json."""
+    new_key = st.text_input(label, os.getenv(env_name, ""), type="password",
+                            help=f"Enregistrée dans le fichier .env ({env_name})")
+    if new_key and new_key != os.getenv(env_name, ""):
+        set_key(ENV_FILE, env_name, new_key)
+        os.environ[env_name] = new_key
 
 st.title("🔍 Configuration & Lancement du Scraping")
 
@@ -68,27 +79,12 @@ with st.expander("⚙️ Paramètres des Scrapers et Filtres", expanded=True):
                                              index=provider_options.index(current_provider))
 
         if config["llm"]["provider"] == "ChatGPT":
-            config["llm"]["gpt_api_key"] = st.text_input("Clé API GPT", config["llm"].get("gpt_api_key", ""),
-                                                         type="password")
+            api_key_input("Clé API GPT", "GPT_API_KEY")
         elif config["llm"]["provider"] == "Mistral":
-            config["llm"]["mistral_api_key"] = st.text_input("Clé API Mistral",
-                                                             config["llm"].get("mistral_api_key", ""), type="password")
+            api_key_input("Clé API Mistral", "MISTRAL_API_KEY")
 
-        config["llm"]["generate_score"] = st.checkbox(
-            "Générer un score pour les offres et un commentaire (Filtre automatique)",
-            config["llm"].get("generate_score", True))
-        if config["llm"]["generate_score"]:
-            config["llm"]["prompt_score"] = st.text_area("Prompt d'évaluation (Score & Justification)",
-                                                         config["llm"].get("prompt_score", ""), height=250)
-
-        config["llm"]["generate_custom_profile"] = st.checkbox(
-            "Générer une proposition d'adaptation de profil en fonction de l'offre",
-            config["llm"].get("generate_custom_profile", False))
-        if config["llm"]["generate_custom_profile"]:
-            config["llm"]["prompt_custom_profile"] = st.text_area("Prompt d'adaptation de l'Objectif professionnel",
-                                                                  config["llm"].get("prompt_custom_profile", ""))
-            config["llm"]["cv"] = st.text_area("Texte brut de votre CV (Sert de base d'analyse pour le prompt)",
-                                               config["llm"].get("cv", ""), height=200)
+        config["llm"]["prompt_score"] = st.text_area("Prompt d'évaluation (Score & Justification)",
+                                                     config["llm"].get("prompt_score", ""), height=250)
 
     col_save, col_reset = st.columns(2)
     with col_save:

@@ -38,3 +38,13 @@ def test_erreurs_de_scraping():
 def test_le_config_default_du_projet_est_valide():
     from jobfinder.paths import DEFAULT_CONFIG_PATH
     load_config(DEFAULT_CONFIG_PATH)
+
+
+def test_cle_api_enregistree_dans_env(tmp_path, monkeypatch):
+    from jobfinder.config import get_api_key, set_api_key
+    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+    env = tmp_path / ".env"
+    set_api_key("Mistral", "abc123", env)
+    assert "MISTRAL_API_KEY='abc123'" in env.read_text()
+    assert get_api_key("Mistral") == "abc123"
+    assert get_api_key("Local") == ""

@@ -56,7 +56,6 @@ class Col:
     SCRAPED_AT = "scraped_at"      # date de récupération par le scraper
     SCORE = "score"                # 0-100, vide si l'offre n'a pas été évaluée
     AI_COMMENT = "ai_comment"
-    CUSTOM_PROFILE = "custom_profile"
     FORCED_RELEVANT = "forced_relevant"  # 1 si réhabilitée à la main malgré un score bas
     STATUS = "status"
     STATUS_CHANGED_AT = "status_changed_at"

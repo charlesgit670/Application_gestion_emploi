@@ -38,7 +38,7 @@ def load_data(file_path):
         JobColumns.TITLE, JobColumns.CONTENT, JobColumns.COMPANY, JobColumns.LINK,
         JobColumns.PLATFORM, JobColumns.DATE, JobColumns.IS_READ, JobColumns.IS_APPLY,
         JobColumns.IS_REFUSED, JobColumns.IS_GOOD_OFFER, JobColumns.COMMENT,
-        JobColumns.SCORE, JobColumns.CUSTOM_PROFILE, JobColumns.DAYS_DIFF
+        JobColumns.SCORE, JobColumns.DAYS_DIFF
     ])
 
 

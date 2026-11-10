@@ -62,13 +62,7 @@ DEFAULT_CONFIG = {
     "use_llm": False,
     "llm": {
         "provider": "Local",
-        "gpt_api_key": "",
-        "mistral_api_key": "",
-        "generate_score": False,
-        "prompt_score": "",
-        "generate_custom_profile": False,
-        "prompt_custom_profile": "",
-        "cv": ""
+        "prompt_score": ""
     }
 }
 
@@ -154,7 +148,7 @@ def get_store_data():
     return pd.DataFrame(columns=[JobColumns.TITLE, JobColumns.CONTENT, JobColumns.COMPANY, JobColumns.LINK,
                                  JobColumns.PLATFORM, JobColumns.DATE, JobColumns.IS_READ, JobColumns.IS_APPLY,
                                  JobColumns.IS_REFUSED, JobColumns.IS_GOOD_OFFER, JobColumns.COMMENT,
-                                 JobColumns.SCORE, JobColumns.CUSTOM_PROFILE, JobColumns.DAYS_DIFF])
+                                 JobColumns.SCORE, JobColumns.DAYS_DIFF])
 
 
 def run_source(source_class, progress_dict):
@@ -246,10 +240,10 @@ async def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config
     client = None
     if use_llm:
         if llm_config["provider"] == "ChatGPT":
-            gpt_api_key = os.getenv("GPT_API_KEY") or llm_config.get("gpt_api_key")
+            gpt_api_key = os.getenv("GPT_API_KEY")
             client = OpenAI(api_key=gpt_api_key)
         elif llm_config["provider"] == "Mistral":
-            mistral_api_key = os.getenv("MISTRAL_API_KEY") or llm_config.get("mistral_api_key")
+            mistral_api_key = os.getenv("MISTRAL_API_KEY")
             client = Mistral(api_key=mistral_api_key)
         elif llm_config["provider"] == "Local":
             client = None
@@ -312,7 +306,6 @@ async def merge_dataframes(progress_dict, stored_df, new_df, use_llm, llm_config
             row["score"] = 0
             row["is_good_offer"] = 0
             row["comment"] = "Filtré (pré-filtre)"
-            row["custom_profile"] = ""
             filtered_rows.append(row)
 
     total_filtered = len(filtered_rows)

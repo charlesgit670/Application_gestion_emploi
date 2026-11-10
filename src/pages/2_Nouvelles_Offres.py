@@ -77,30 +77,20 @@ else:
         days = job[JobColumns.DAYS_DIFF]
         st.write(f"📅 Publiée il y a **{int(days)}** jours" if pd.notna(days) else "Date non spécifiée")
 
-        col_analysis, col_profile = st.columns(2)
-        with col_analysis:
+        score = int(job[JobColumns.SCORE]) if pd.notna(job[JobColumns.SCORE]) else -1
+        if score != -1:
+            color = get_color(score)
+            st.markdown(f"""
+               <div style="margin: 15px 0; width: 100%; background-color: #eee; border-radius: 5px;">
+                 <div style="width: {score}%; background-color: {color}; padding: 8px 0; border-radius: 5px; text-align: center; color: white; font-weight: bold;">
+                   Correspondance IA : {score}%
+                 </div>
+               </div>
+               """, unsafe_allow_html=True)
 
-            score = int(job[JobColumns.SCORE]) if pd.notna(job[JobColumns.SCORE]) else -1
-            if score != -1:
-                color = get_color(score)
-                st.markdown(f"""
-                   <div style="margin: 15px 0; width: 100%; background-color: #eee; border-radius: 5px;">
-                     <div style="width: {score}%; background-color: {color}; padding: 8px 0; border-radius: 5px; text-align: center; color: white; font-weight: bold;">
-                       Correspondance IA : {score}%
-                     </div>
-                   </div>
-                   """, unsafe_allow_html=True)
-
-
-
-            with st.expander("💬 Commentaire de pertinence IA", expanded=True):
-                st.write(
-                    job[JobColumns.COMMENT] if pd.notna(job[JobColumns.COMMENT]) else "Aucun commentaire disponible.")
-        with col_profile:
-            custom_prof = job.get(JobColumns.CUSTOM_PROFILE)
-            if pd.notna(custom_prof) and str(custom_prof).strip():
-                with st.expander("👤 Objectif CV adapté au poste", expanded=True):
-                    st.write(custom_prof)
+        with st.expander("💬 Commentaire de pertinence IA", expanded=True):
+            st.write(
+                job[JobColumns.COMMENT] if pd.notna(job[JobColumns.COMMENT]) else "Aucun commentaire disponible.")
 
         st.markdown("### 📄 Descriptif de l'offre")
 

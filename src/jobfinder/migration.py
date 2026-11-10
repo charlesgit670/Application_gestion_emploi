@@ -63,7 +63,6 @@ def convert_legacy_dataframe(old: pd.DataFrame) -> pd.DataFrame:
         Col.PUBLISHED_ON: published,
         Col.SCORE: score.astype("Int64"),
         Col.AI_COMMENT: old.get("comment"),
-        Col.CUSTOM_PROFILE: old.get("custom_profile"),
         Col.FORCED_RELEVANT: forced,
         Col.STATUS: status,
     })

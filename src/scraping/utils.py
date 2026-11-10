@@ -19,7 +19,6 @@ from langdetect.lang_detect_exception import LangDetectException
 class Format(BaseModel):
     reponse: int
     justification: str
-    custom_profile: str = ""
 
 def measure_time(func):
     """Annotation pour mesurer le temps d'exécution d'une fonction"""
@@ -134,75 +133,51 @@ async def add_LLM_comment(client_LLM, llm_config, row):
     if pd.notna(row.get('score')) and row.get('score') != -1:
         return row
 
-    if llm_config["generate_score"]:
-        title = row["title"]
-        company = row["company"]
-        description = row["content"]
+    title = row["title"]
+    company = row["company"]
+    description = row["content"]
+    offer_text = "\n".join([company, title, description])
+    score_prompt = llm_config["prompt_score"] + "\n" + offer_text
 
-        # Construire le prompt combiné (score + custom_profile si nécessaire)
-        score_prompt = llm_config["prompt_score"] + "\n" + company + "\n" + title + "\n" + description
-
-        # Si generate_custom_profile est activé, demander aussi le profil personnalisé
-        if llm_config.get("generate_custom_profile", False):
-            score_prompt += "\n\n" + llm_config["cv"] + "\n" + llm_config["prompt_custom_profile"]
-
-        if llm_config["provider"] == "Local":
-            format_spec = {
-                "type": "object",
-                "properties": {
-                    "reponse": {"type": "number"},
-                    "justification": {"type": "string"},
-                }
+    if llm_config["provider"] == "Local":
+        format_spec = {
+            "type": "object",
+            "properties": {
+                "reponse": {"type": "number"},
+                "justification": {"type": "string"},
             }
-            if llm_config.get("generate_custom_profile", False):
-                format_spec["properties"]["custom_profile"] = {"type": "string"}
-
-            response = generate(
-                model="gemma4:26b",
-                think=False,
-                options={"temperature": 0.1},
-                format=format_spec,
-                prompt=score_prompt,
+        }
+        response = generate(
+            model="gemma4:26b",
+            think=False,
+            options={"temperature": 0.1},
+            format=format_spec,
+            prompt=score_prompt,
+        )
+        json_output = json.loads(response.response)
+    elif llm_config["provider"] == "ChatGPT":
+        async with chatgpt_rate_limiter:
+            response = client_LLM.responses.parse(
+                model="gpt-4o-mini",
+                instructions=llm_config["prompt_score"],
+                temperature=0.1,
+                input=offer_text,
+                text_format=Format
             )
-            json_output = json.loads(response.response)
-        elif llm_config["provider"] == "ChatGPT":
-            chatgpt_input = company + "\n" + title + "\n" + description
-            if llm_config.get("generate_custom_profile", False):
-                chatgpt_input += "\n\n" + llm_config["cv"] + "\n" + llm_config["prompt_custom_profile"]
-            async with chatgpt_rate_limiter:
-                response = client_LLM.responses.parse(
-                    model="gpt-4o-mini",
-                    instructions=llm_config["prompt_score"],
-                    temperature=0.1,
-                    input=chatgpt_input,
-                    text_format=Format
-                )
-            json_output = json.loads(response.output_text)
-        elif llm_config["provider"] == "Mistral":
-            async with rate_limiter:
-                chat_response = await client_LLM.chat.complete_async(
-                    model="mistral-small-latest",
-                    temperature=0.1,
-                    messages=[{"role": "user", "content": score_prompt}],
-                    response_format={"type": "json_object"}
-                )
-            json_output = json.loads(chat_response.choices[0].message.content)
+        json_output = json.loads(response.output_text)
+    elif llm_config["provider"] == "Mistral":
+        async with rate_limiter:
+            chat_response = await client_LLM.chat.complete_async(
+                model="mistral-small-latest",
+                temperature=0.1,
+                messages=[{"role": "user", "content": score_prompt}],
+                response_format={"type": "json_object"}
+            )
+        json_output = json.loads(chat_response.choices[0].message.content)
 
-        row["is_good_offer"] = 1 if int(json_output["reponse"]) >= 50 else 0
-        row["comment"] = json_output["justification"]
-        row["score"] = int(json_output["reponse"])
-
-        # Extraire custom_profile du JSON si présent, uniquement pour les offres jugées
-        # pertinentes (comme avant : on ne garde le profil personnalisé que si is_good_offer).
-        if (
-            llm_config.get("generate_custom_profile", False)
-            and row["is_good_offer"] == 1
-            and "custom_profile" in json_output
-        ):
-            row["custom_profile"] = json_output["custom_profile"]
-    elif llm_config.get("generate_custom_profile", False):
-        # Si generate_score=false mais generate_custom_profile=true
-        row["custom_profile"] = await add_custom_cv_profile(client_LLM, llm_config, row)
+    row["is_good_offer"] = 1 if int(json_output["reponse"]) >= 50 else 0
+    row["comment"] = json_output["justification"]
+    row["score"] = int(json_output["reponse"])
 
     return row
 
@@ -217,43 +192,6 @@ async def add_LLM_comment_and_track_progress(client, llm_config, row, i, total, 
         safe_total = total if total and total > 0 else 1
         progress_dict["Traitement des nouvelles offres (LLM)"] = (i + 1, safe_total)
     return result
-
-@backoff.on_exception(backoff.expo, Exception, max_time=120, jitter=backoff.full_jitter)
-async def add_custom_cv_profile(client_LLM, llm_config, row):
-    if llm_config["provider"] == "Local":
-        response = generate(
-            model="gemma4:26b",
-            think=False,
-            options={
-                "temperature": 0.3,
-            },
-            prompt=llm_config["cv"] + "\n" + row["content"] + "\n" + llm_config["prompt_custom_profile"],
-        )
-        output_text = response.response
-    elif llm_config["provider"] == "ChatGPT":
-        response = client_LLM.responses.create(
-            model="gpt-4o-mini",
-            instructions=llm_config["prompt_custom_profile"],
-            temperature=0.3,
-            input=llm_config["cv"] + "\n" + row["content"],
-        )
-        output_text = response.output_text
-    elif llm_config["provider"] == "Mistral":
-        async with rate_limiter:
-            chat_response = await client_LLM.chat.complete_async(
-                model="mistral-large-latest",
-                temperature=0.1,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": llm_config["cv"] + "\n" + row["content"],
-                    },
-                ],
-            )
-        output_text = chat_response.choices[0].message.content
-
-    return output_text
-
 
 def is_language_allowed(languages_config, content):
     try:

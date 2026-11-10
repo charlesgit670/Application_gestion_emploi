@@ -67,7 +67,6 @@ Sur la page **Mettre à jour les offres** :
   - **ChatGPT** : nécessite une clé API (payant).  
   - **Mistral** : nécessite une clé API (version gratuite limitée).  
 - **Générer un score** : attribue un score (0–100) et un commentaire pour chaque offre (le prompt doit garder le format fourni).  
-- **Générer un profil personnalisé** : en fournissant un prompt et votre CV, l’application génère un texte accrocheur adapté à chaque offre.  
 ### Modes keyword_mode
 
 Les valeurs possibles dans `config.json` > `keyword_mode` sont :
@@ -118,35 +117,18 @@ Exemple:
 
 ## 🔐 Sécurité des clés API
 
-Les clés API pour OpenAI (ChatGPT) et Mistral peuvent être fournies de deux façons :
+Les clés API pour OpenAI (ChatGPT) et Mistral sont stockées dans un fichier **`.env`** à la racine du projet, jamais dans `config.json`.
 
-### 1. **Via variables d'environnement (recommandé)**
-Définissez les variables d'environnement avant de lancer l'application :
+- Le plus simple : saisissez la clé dans la page de configuration, elle est enregistrée automatiquement dans `.env`.
+- Ou bien copiez `.env.example` en `.env` et complétez-le :
 
 ```bash
-# Linux / macOS
-export GPT_API_KEY="votre-clé-openai"
-export MISTRAL_API_KEY="votre-clé-mistral"
-streamlit run src/app.py
-
-# Windows (PowerShell)
-$env:GPT_API_KEY="votre-clé-openai"
-$env:MISTRAL_API_KEY="votre-clé-mistral"
-streamlit run src/app.py
-
-# Windows (CMD)
-set GPT_API_KEY=votre-clé-openai
-set MISTRAL_API_KEY=votre-clé-mistral
-streamlit run src/app.py
+GPT_API_KEY=votre-clé-openai
+MISTRAL_API_KEY=votre-clé-mistral
 ```
 
-### 2. **Via configuration (`config.json`)**
-Si les variables d'environnement ne sont pas définies, l'application utilise les clés stockées dans `config.json` (champs `llm.gpt_api_key` et `llm.mistral_api_key`).
-
-### Priorité de résolution
-Variables d'environnement → Configuration `config.json`
-
-**⚠️ Conseil sécurité** : Préférez les variables d'environnement pour éviter de stocker les clés en clair dans le fichier de configuration.
+Une variable d'environnement système portant le même nom est aussi prise en compte.
+Le fichier `.env` est exclu de git (`.gitignore`).
 
 ---
 

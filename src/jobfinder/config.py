@@ -20,7 +20,7 @@ import shutil
 from pathlib import Path
 from typing import Literal
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 from pydantic import BaseModel, ConfigDict, Field
 
 from jobfinder.paths import CONFIG_PATH, DEFAULT_CONFIG_PATH, ENV_PATH
@@ -49,19 +49,13 @@ class PreFilterConfig(_Section):
 class LlmConfig(_Section):
     provider: LlmProvider = "Local"
     ollama_model: str = "gemma4:26b"  # modèle utilisé avec le provider "Local"
-    gpt_api_key: str = ""      # déconseillé : préférer GPT_API_KEY dans .env
-    mistral_api_key: str = ""  # déconseillé : préférer MISTRAL_API_KEY dans .env
+    # Les clés API ne sont PAS ici : elles sont dans le fichier .env (voir get_api_key)
 
-    generate_score: bool = False
     prompt_score: str = ""
     # Seuil de pertinence : une offre dont le score est < seuil est "écartée par l'IA".
     # Le seuil est appliqué à l'affichage : le modifier fait réapparaître (ou disparaître)
     # des offres dans "Nouvelles offres" sans relancer le LLM.
     score_threshold: int = Field(default=50, ge=0, le=100)
-
-    generate_custom_profile: bool = False
-    prompt_custom_profile: str = ""
-    cv: str = ""
 
 
 class AppConfig(_Section):
@@ -120,11 +114,22 @@ def save_config(config: AppConfig, path: Path = CONFIG_PATH) -> None:
         json.dump(config.model_dump(), f, indent=2, ensure_ascii=False)
 
 
-def get_api_key(config: AppConfig) -> str:
-    """Clé API du provider choisi : variable d'environnement (.env) en priorité, sinon config.json."""
-    provider = config.llm.provider
-    if provider == "ChatGPT":
-        return os.getenv("GPT_API_KEY") or config.llm.gpt_api_key
-    if provider == "Mistral":
-        return os.getenv("MISTRAL_API_KEY") or config.llm.mistral_api_key
-    return ""  # Ollama en local : pas de clé
+# Nom de la variable d'environnement contenant la clé API de chaque provider
+API_KEY_ENV_VARS = {"ChatGPT": "GPT_API_KEY", "Mistral": "MISTRAL_API_KEY"}
+
+
+def get_api_key(provider: str) -> str:
+    """Clé API d'un provider, lue dans les variables d'environnement (chargées depuis .env).
+
+    Retourne "" pour Ollama (local, sans clé) ou si la clé n'est pas renseignée.
+    """
+    env_var = API_KEY_ENV_VARS.get(provider)
+    return os.getenv(env_var, "") if env_var else ""
+
+
+def set_api_key(provider: str, key: str, env_path: Path = ENV_PATH) -> None:
+    """Enregistre la clé API d'un provider dans .env (le fichier est créé si besoin)."""
+    env_var = API_KEY_ENV_VARS[provider]
+    env_path.touch(exist_ok=True)
+    set_key(env_path, env_var, key)
+    os.environ[env_var] = key  # disponible immédiatement, sans redémarrer

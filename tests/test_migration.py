@@ -11,7 +11,7 @@ def _legacy():
         "title": ["t"] * 7, "content": ["c"] * 7, "company": ["co"] * 7,
         "link": [f"l{i}" for i in range(7)], "hash": [f"h{i}" for i in range(7)],
         "platform": ["hw"] * 7, "date": ["2026-10-01"] * 7, "comment": ["x"] * 7,
-        "custom_profile": [None] * 7, "days_diff": [1] * 7,
+        "days_diff": [1] * 7,
         "is_read":       [0, 0, 1, 1, 1, 0, 0],
         "is_apply":      [0, 0, 0, 1, 1, 0, 0],
         "is_refused":    [0, 0, 0, 0, 1, 0, 0],

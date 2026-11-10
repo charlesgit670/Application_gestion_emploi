@@ -21,7 +21,6 @@ class JobFinder:
             "is_good_offer": 1,
             "comment": "",
             "score": -1,
-            "custom_profile": "",
             "hash": [generate_hash(platform + title + company + content) for title, content, company, datetime in zip(list_title, list_content, list_company, list_datetime)]
         }
         df = pd.DataFrame(data=data)

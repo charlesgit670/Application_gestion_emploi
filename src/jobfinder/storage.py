@@ -42,7 +42,6 @@ CREATE TABLE IF NOT EXISTS jobs (
     {Col.SCRAPED_AT}        TEXT NOT NULL,      -- 'AAAA-MM-JJ HH:MM:SS'
     {Col.SCORE}             INTEGER,            -- NULL = pas encore évaluée
     {Col.AI_COMMENT}        TEXT,
-    {Col.CUSTOM_PROFILE}    TEXT,
     {Col.FORCED_RELEVANT}   INTEGER NOT NULL DEFAULT 0,
     {Col.STATUS}            TEXT NOT NULL DEFAULT '{Status.NOUVELLE}',
     {Col.STATUS_CHANGED_AT} TEXT,
@@ -57,7 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs({Col.STATUS});
 # leur valeur par défaut (ex : status = 'nouvelle').
 INSERTABLE_COLUMNS = [
     Col.HASH, Col.LINK, Col.PLATFORM, Col.TITLE, Col.COMPANY, Col.CONTENT,
-    Col.PUBLISHED_ON, Col.SCORE, Col.AI_COMMENT, Col.CUSTOM_PROFILE,
+    Col.PUBLISHED_ON, Col.SCORE, Col.AI_COMMENT,
     Col.FORCED_RELEVANT, Col.STATUS, Col.STATUS_CHANGED_AT, Col.APPLIED_ON, Col.NOTES,
 ]
 REQUIRED_COLUMNS = [Col.HASH, Col.LINK, Col.PLATFORM]
@@ -195,13 +194,12 @@ class JobStore:
         with self._connect() as conn:
             conn.execute(f"UPDATE jobs SET {Col.NOTES} = ? WHERE {Col.ID} = ?", (notes, int(job_id)))
 
-    def set_ai_result(self, job_id: int, score: int | None, comment: str, custom_profile: str = "") -> None:
+    def set_ai_result(self, job_id: int, score: int | None, comment: str) -> None:
         """Enregistre le résultat de l'évaluation LLM d'une offre."""
         with self._connect() as conn:
             conn.execute(
-                f"UPDATE jobs SET {Col.SCORE} = ?, {Col.AI_COMMENT} = ?, {Col.CUSTOM_PROFILE} = ? "
-                f"WHERE {Col.ID} = ?",
-                (score, comment, custom_profile, int(job_id)),
+                f"UPDATE jobs SET {Col.SCORE} = ?, {Col.AI_COMMENT} = ? WHERE {Col.ID} = ?",
+                (score, comment, int(job_id)),
             )
 
     # --------------------------------------------------------------- utilitaires
