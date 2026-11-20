@@ -1,6 +1,11 @@
-"""Scraper France Travail (pages HTML, pagination par tranches de 20 offres)."""
+"""Scraper France Travail.
+
+La recherche se lit dans les pages HTML (pagination par tranches de 20 offres) ;
+la description de chaque offre vient de l'API JSON du site (champ « descriptif »).
+"""
 import logging
 import re
+from urllib.parse import urlsplit
 
 from jobfinder.scrapers.base import BaseScraper, ProgressCallback, RawJob, unique_by_link
 from jobfinder.scrapers.dates import parse_relative_date
@@ -9,6 +14,7 @@ from jobfinder.scrapers.keywords import build_keyword_urls
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://candidat.francetravail.fr"
+DETAIL_API = BASE_URL + "/api-descriptifoffre/offre/{offer_id}"
 PAGE_SIZE = 20
 
 
@@ -75,5 +81,10 @@ class FranceTravail(BaseScraper):
         )
 
     def _read_description(self, job: RawJob) -> str:
-        block = self.fetch_soup(job.link).find("div", class_="description")
-        return block.get_text(strip=True, separator="\n") if block else ""
+        data = self.fetch(DETAIL_API.format(offer_id=offer_id_from_link(job.link))).json()
+        return (data.get("descriptif") or "").strip()
+
+
+def offer_id_from_link(link: str) -> str:
+    """Identifiant de l'offre = dernier segment du lien (.../offres/recherche/detail/216MPKK)."""
+    return urlsplit(link).path.rstrip("/").rsplit("/", 1)[-1]

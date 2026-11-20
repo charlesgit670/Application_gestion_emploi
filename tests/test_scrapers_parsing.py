@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 
 from jobfinder.config import AppConfig
 from jobfinder.scrapers.apec_worker import build_payload, html_to_text, parse_apec_date, parse_search_url
-from jobfinder.scrapers.francetravail import FranceTravail
+from jobfinder.scrapers.francetravail import FranceTravail, offer_id_from_link
 from jobfinder.scrapers.hellowork import HelloWork
 from jobfinder.scrapers.linkedin import Linkedin
 from jobfinder.scrapers.servicepublic import ServicePublic
@@ -39,6 +39,11 @@ def test_carte_france_travail():
     assert job.link == "https://candidat.francetravail.fr/offres/123"
 
 
+def test_identifiant_offre_france_travail():
+    assert offer_id_from_link("https://candidat.francetravail.fr/offres/recherche/detail/216MPKK") == "216MPKK"
+    assert offer_id_from_link("https://candidat.francetravail.fr/offres/recherche/detail/216MPKK?x=1") == "216MPKK"
+
+
 def test_carte_service_public():
     job = ServicePublic._read_card(_item("""
         <li class="fr-col-12 item"><a class="is-same-domain" href="https://sp.fr/o/1">Data scientist</a>
@@ -57,14 +62,14 @@ def test_urls_de_recherche():
             "sp": "https://choisirleservicepublic.gouv.fr/nos-offres/filtres/mot-cles/data%20scientist/localisation/283/",
             "linkedin": "https://www.linkedin.com/jobs/search?keywords=Data&location=Nanterre",
         },
-        keyword_mode={"hw": "one_by_one", "ft": "all", "sp": "one_by_one", "linkedin": "or"},
     )
     assert HelloWork(config).search_urls()[0] == \
         "https://www.hellowork.com/fr-fr/emploi/recherche.html?k=data+scientist&k_autocomplete=x&l=Nanterre"
     assert FranceTravail(config).search_urls() == \
-        ["https://candidat.francetravail.fr/offres/recherche?lieux=92050&motsCles=data+scientist+ml&rayon=20"]
-    assert ServicePublic(config).search_urls()[1] == \
-        "https://choisirleservicepublic.gouv.fr/nos-offres/filtres/mot-cles/ml/localisation/283/"
+        ["https://candidat.francetravail.fr/offres/recherche?lieux=92050&motsCles=data+scientist&rayon=20",
+         "https://candidat.francetravail.fr/offres/recherche?lieux=92050&motsCles=ml&rayon=20"]
+    assert ServicePublic(config).search_urls() == \
+        ["https://choisirleservicepublic.gouv.fr/nos-offres/filtres/mot-cles/data%20scientist%20ml/localisation/283/"]
     assert Linkedin(config).search_urls() == \
         ["https://www.linkedin.com/jobs/search?keywords=%22data+scientist%22+OR+%22ml%22&location=Nanterre"]
 

@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 class ServicePublic(BaseScraper):
     key = "sp"
     label = "Service Public"
+    keyword_mode = "all"  # une seule recherche avec tous les mots-clés
 
     def search_urls(self) -> list[str]:
         # Le mot-clé est dans le chemin : .../mot-cles/data%20scientist/...

@@ -3,7 +3,7 @@
 La configuration est décrite par des modèles pydantic : chaque champ a un type et
 une valeur par défaut. Avantages par rapport à un simple dictionnaire :
     - un champ absent du fichier prend automatiquement sa valeur par défaut ;
-    - une valeur invalide (ex : keyword_mode = "toto") lève une erreur explicite ;
+    - une valeur invalide (ex : llm.provider = "toto") lève une erreur explicite ;
     - l'autocomplétion de l'IDE fonctionne (config.llm.provider, ...).
 
 Le format JSON reste identique à l'existant : un ancien config.json se charge tel quel.
@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 # Clés courtes des plateformes (utilisées dans config.json et dans la base)
 PLATFORM_KEYS = ("linkedin", "apec", "hw", "ft", "sp")
 
-KeywordMode = Literal["one_by_one", "or", "all"]
 LlmProvider = Literal["Local", "ChatGPT", "Mistral"]
 
 
@@ -91,7 +90,6 @@ class AppConfig(_Section):
     keywords: list[str] = Field(default_factory=list)
     url: dict[str, str] = Field(default_factory=dict)
     launch_scrap: dict[str, bool] = Field(default_factory=dict)
-    keyword_mode: dict[str, KeywordMode] = Field(default_factory=dict)
 
     filter_day_scrap: int = Field(default=7, ge=1)  # ancienneté max des offres scrapées
     language_filter: dict[str, bool] = Field(

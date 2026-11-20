@@ -216,8 +216,8 @@ def main() -> None:
     config = json.load(sys.stdin)
 
     filters = parse_search_url(config["url"]["apec"])
-    mode = config.get("keyword_mode", {}).get("apec", "or")
-    terms = build_keyword_terms(config["keywords"], mode, quote_terms_for_or=True)
+    # APEC accepte l'opérateur OR : une seule recherche pour tous les mots-clés
+    terms = build_keyword_terms(config["keywords"], "or", quote_terms_for_or=True)
 
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=True, firefox_user_prefs={"dom.webdriver.enabled": False})

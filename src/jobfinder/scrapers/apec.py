@@ -21,7 +21,7 @@ SRC_DIR = PROJECT_ROOT / "src"
 class Apec(BaseScraper):
     key = "apec"
     label = "APEC"
-    default_keyword_mode = "or"
+    keyword_mode = "or"  # mode utilisé par apec_worker.py
 
     def __init__(self, config: AppConfig):
         super().__init__(config)

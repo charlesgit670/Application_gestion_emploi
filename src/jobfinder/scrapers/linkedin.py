@@ -27,7 +27,7 @@ PAGE_SIZE = 10
 class Linkedin(BaseScraper):
     key = "linkedin"
     label = "LinkedIn"
-    default_keyword_mode = "or"
+    keyword_mode = "or"
 
     def search_urls(self) -> list[str]:
         template = re.sub(r"keywords=[^&]*", "keywords={keyword}", self.search_url)

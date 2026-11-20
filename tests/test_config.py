@@ -17,7 +17,7 @@ def test_ancien_fichier_complete_par_les_valeurs_par_defaut(tmp_path):
 
 def test_valeur_invalide_refusee():
     with pytest.raises(ValidationError):
-        AppConfig.model_validate({"keyword_mode": {"apec": "toto"}})
+        AppConfig.model_validate({"llm": {"provider": "toto"}})
 
 
 def test_aller_retour(tmp_path):

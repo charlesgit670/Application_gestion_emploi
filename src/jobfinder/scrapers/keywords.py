@@ -1,6 +1,7 @@
 """Construction des URLs de recherche à partir des mots-clés.
 
-Trois modes (config.json > keyword_mode) :
+Trois modes, fixés par plateforme dans chaque scraper (attribut keyword_mode) selon
+ce que le site sait faire :
     one_by_one : une recherche par mot-clé       ["data scientist", "machine learning"]
     or         : une seule recherche avec OR     ["data scientist OR machine learning"]
     all        : une seule recherche, tout collé ["data scientist machine learning"]

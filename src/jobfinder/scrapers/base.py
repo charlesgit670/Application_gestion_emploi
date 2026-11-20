@@ -68,12 +68,12 @@ class BaseScraper(ABC):
 
     key: str = ""                        # clé courte utilisée dans config.json ("hw", "apec"...)
     label: str = ""                      # nom affiché
-    default_keyword_mode: str = "one_by_one"
+    # Façon de chercher les mots-clés (voir keywords.py) : propre à la plateforme, non configurable
+    keyword_mode: str = "one_by_one"
 
     def __init__(self, config: AppConfig):
         self.keywords = config.keywords
         self.search_url = config.url.get(self.key, "")
-        self.keyword_mode = config.keyword_mode.get(self.key, self.default_keyword_mode)
         self.max_age_days = config.filter_day_scrap
         self.session = requests.Session()
         self.session.headers.update(HEADERS)

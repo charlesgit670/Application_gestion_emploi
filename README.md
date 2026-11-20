@@ -6,6 +6,20 @@ vos candidatures** (relances, entretiens, statistiques).
 
 Plateformes supportées : **LinkedIn**, **APEC**, **HelloWork**, **France Travail**, **Choisir le Service Public**.
 
+![Tableau de bord de JobFinder](docs/screenshots/dashboard.png)
+
+**En bref**
+
+- 🔎 **Une seule mise à jour** interroge tous les sites cochés, en parallèle, et ne garde que les nouvelles offres.
+- 🤖 **Un LLM note chaque offre de 0 à 100** selon vos critères écrits en langage naturel
+  (Ollama en local, ChatGPT ou Mistral), avec une justification.
+- 🗂️ **Tri à la chaîne au clavier** : lue, postuler, réhabiliter… l'offre suivante s'affiche aussitôt.
+- 📌 **Suivi des candidatures** : notes, entretiens, refus, rappels de relance.
+- 🧬 **Doublons signalés** quand la même offre est publiée sur plusieurs sites.
+- 💾 **Tout reste sur votre ordinateur** : base SQLite locale, clés API dans un fichier `.env`.
+
+> Les captures d'écran de ce README sont réalisées avec des **offres fictives**.
+
 ---
 
 ## 🚀 Lancer l'application
@@ -43,15 +57,56 @@ L'ancien fichier `data/job.csv` est importé automatiquement dans la base `data/
 
 ## 🧭 Utilisation
 
-| Page | Rôle |
-|---|---|
-| **Tableau de bord** | Offres à traiter, candidatures en cours, relances à faire ; suivi des candidatures (taux d'entretien, refus) ; graphiques : entonnoir, taux de pertinence IA par plateforme, volumes, publications par semaine |
-| **Offres** | Onglets *À traiter*, *Écartées*, *Déjà lues* ; filtres (texte, plateforme, ancienneté) ; **seuil de pertinence** réglable en direct |
-| **Candidatures** | Onglets *Postulées*, *Entretiens*, *Refusées* ; date de candidature, notes, entretiens réalisés, rappel de relance |
-| **Scraping & réglages** | Toute la configuration, lancement d'une mise à jour et suivi en direct (on peut changer de page pendant le scraping) |
+L'application comporte quatre pages, accessibles depuis le menu de gauche.
 
-**Raccourcis clavier** (listes d'offres) : `←` / `→` naviguer · `L` lue · `P` postuler ·
-`R` réhabiliter / remettre à traiter / relancée · `E` entretien réalisé · `X` refusée.
+### Tableau de bord
+
+Vue d'ensemble de la recherche (capture en haut de ce document) : offres à traiter,
+candidatures en cours, relances à faire ; suivi des candidatures (taux d'entretien, refus) ;
+graphiques : entonnoir, taux de pertinence IA par plateforme, volumes, publications par semaine.
+
+### Offres
+
+Onglets *À traiter*, *Écartées* (par l'IA ou les filtres) et *Déjà lues* ; filtres par texte,
+plateforme et ancienneté ; **seuil de pertinence** réglable en direct. Chaque offre affiche son
+score, l'analyse de l'IA et sa description. Ci-dessous, une offre publiée sur l'APEC et sur
+LinkedIn est signalée comme **doublon probable**.
+
+![Page Offres : liste, analyse de l'IA et doublon probable](docs/screenshots/offres.png)
+
+### Candidatures
+
+Onglets *Postulées*, *Entretiens* et *Refusées* : date de candidature, notes libres, entretiens
+réalisés et rappel de relance.
+
+![Page Candidatures](docs/screenshots/candidatures.png)
+
+### Scraping & réglages
+
+Toute la configuration (mots-clés, URL de recherche par plateforme, filtres, LLM et critères de
+recherche), le lancement d'une mise à jour et son suivi en direct. On peut changer de page
+pendant le scraping.
+
+<details>
+<summary>Voir la page de réglages</summary>
+
+![Page Scraping & réglages](docs/screenshots/scraping.png)
+
+</details>
+
+### ⌨️ Raccourcis clavier
+
+Dans les listes d'offres et de candidatures :
+
+| Touche | Action |
+|---|---|
+| `←` / `→` | offre précédente / suivante |
+| `L` | marquer comme lue |
+| `P` | postuler |
+| `R` | réhabiliter / remettre à traiter / relancée |
+| `E` | entretien réalisé |
+| `X` | refusée |
+
 Après une action, l'offre suivante s'affiche à la même place : idéal pour trier à la chaîne.
 
 ---
@@ -92,11 +147,10 @@ Tout se règle dans la page **Scraping & réglages**. Les réglages sont enregis
 `config_default.json`).
 
 - **URL de recherche** : faites une recherche sur le site avec vos filtres (lieu, contrat...),
-  puis collez l'URL. Le mot-clé de l'URL est remplacé par chacun de vos mots-clés.
-- **Mode des mots-clés** :
-  - `one_by_one` : une recherche par mot-clé (plus de volume, plus de bruit) ;
-  - `or` : une seule recherche « mot1 OR mot2 » (plus ciblé) ;
-  - `all` : une seule recherche avec tous les mots (plus strict).
+  puis collez l'URL. Le mot-clé de l'URL est remplacé par vos mots-clés : LinkedIn et l'APEC
+  acceptent l'opérateur OR (une seule recherche « mot1 OR mot2 ») ; le Service Public fait une
+  seule recherche avec tous les mots-clés ; HelloWork et France Travail font une recherche par
+  mot-clé. Ce comportement est fixé par plateforme.
 - **Ancienneté maximale** des offres récupérées (non appliquée au Service Public, dont les
   offres restent ouvertes longtemps).
 - **LLM** :
@@ -150,6 +204,7 @@ src/jobfinder/
     scrapers/               un fichier par site + socle commun (base.py)
     ui/                     interface NiceGUI (une page par fichier dans ui/pages/)
 tests/                      tests pytest (sans réseau)
+docs/screenshots/           captures d'écran du README (données fictives)
 ```
 
 Le pipeline peut aussi être lancé sans interface : `cd src && python -m jobfinder.pipeline`.
@@ -197,7 +252,6 @@ Les tests n'accèdent ni au réseau ni au dossier `data/`.
   recherche est renseignée ; consultez le journal (page de réglages ou `data/jobfinder.log`).
   Les sites changent régulièrement leur HTML : un scraper peut devoir être adapté
   (`src/jobfinder/scrapers/`).
-- **Volume trop faible** : essayez le mode `one_by_one` ; **trop de bruit** : `or` ou `all`.
 - **LLM local** : vérifiez qu'Ollama est lancé et que le modèle configuré est installé
   (`ollama list`).
 - **Port 8080 déjà utilisé** : une autre instance de JobFinder est probablement ouverte.

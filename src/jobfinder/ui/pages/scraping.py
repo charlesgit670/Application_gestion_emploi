@@ -16,8 +16,6 @@ from jobfinder.paths import CONFIG_PATH, DEFAULT_CONFIG_PATH
 from jobfinder.ui import services
 from jobfinder.ui.layout import page_frame
 
-KEYWORD_MODES = {"one_by_one": "Une recherche par mot-clé", "or": "Mots-clés combinés (OU)",
-                 "all": "Tous les mots-clés ensemble"}
 LANGUAGES = {"fr": "Français", "en": "Anglais", "autre": "Autres langues"}
 
 
@@ -42,12 +40,9 @@ def scraping_page() -> None:
                 for key in PLATFORM_KEYS:
                     config.url.setdefault(key, "")
                     config.launch_scrap.setdefault(key, False)
-                    config.keyword_mode.setdefault(key, "one_by_one")
                     with ui.row().classes("w-full items-center no-wrap gap-3"):
                         ui.switch(PLATFORM_LABELS[key]).bind_value(config.launch_scrap, key).classes("w-44 shrink-0")
                         ui.input("URL de recherche").bind_value(config.url, key).props("dense outlined").classes("grow")
-                        ui.select(KEYWORD_MODES).bind_value(config.keyword_mode, key).props("dense outlined") \
-                            .classes("w-64 shrink-0")
 
             with section("Filtres avant le LLM", "filter_alt", "Ancienneté, langues, mots exclus ou requis"):
                 ui.number("Ancienneté maximale des offres (jours)", min=1, precision=0, format="%d") \
